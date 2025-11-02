@@ -1,38 +1,37 @@
 // js/main.js
-// ❗️ (수정) '진짜' FastAPI 서버와 연동하는 최종본
+// ❗️ (수정) '진짜' WebSocket 메시지를 처리하는 최종본
 
 let connectionStatusElement;
 
-// 1. HTML 문서가 완전히 로드되었을 때, 'main' 함수를 실행합니다.
 document.addEventListener('DOMContentLoaded', function() {
   if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
-    main(); // ❗️ main 함수를 async로 변경했으므로 await 없이 호출
+    main();
   }
 });
 
-// 2. ❗️ (수정) main 함수를 async로 변경
-// (api.getInitialMachines()가 '진짜' fetch를 기다려야 함)
+// 2. main 함수 (async로 변경)
 async function main() {
   console.log('WashCall WebApp 시작!');
   
   connectionStatusElement = document.getElementById('connection-status');
-  updateConnectionStatus('connecting'); 
+  updateConnectionStatus('connecting');
 
-  // 3. ❗️ (수정) '진짜' API를 await로 호출
+  // 3. try...catch로 /load API 에러 잡기
   try {
-      const machines = await api.getInitialMachines();
+      const machines = await api.getInitialMachines(); 
       renderMachines(machines); 
+      
+      // 4. '진짜' WebSocket 연결 (onOpen, onMessage, onError 콜백 전달)
+      api.connect(
+          () => updateConnectionStatus('success'), // ❗️ 1. onOpen
+          handleSocketMessage,                 // ❗️ 2. onMessage
+          () => updateConnectionStatus('error')  // ❗️ 3. onError
+      ); 
+      
   } catch (error) {
       console.error("초기 세탁기 목록 로드 실패:", error);
       updateConnectionStatus('error');
-      // (오류가 나도 WebSocket 연결은 시도)
   }
-
-  // 4. ❗️ (수정) '진짜' WebSocket 연결 (에러 콜백 추가)
-  api.connect(
-      handleSocketMessage, // 성공 시 콜백
-      () => updateConnectionStatus('error') // 실패 시 콜백
-  ); 
 }
 
 /**
@@ -66,25 +65,66 @@ function updateConnectionStatus(status) {
  * ❗️ (핵심 수정) '진짜' 서버 메시지를 처리하는 함수
  */
 function handleSocketMessage(event) {
-    // 1. 연결 성공 시 상태 업데이트 (최초 1회)
-    if (connectionStatusElement && connectionStatusElement.classList.contains('info')) {
-        updateConnectionStatus('success');
-    }
+    // ❗️ [추가] 서버가 보낸 WebSocket 응답(response)값 전체를 콘솔에 띄웁니다.
+    // 이 로그를 통해 서버가 정확히 어떤 JSON 형식으로 데이터를 보내는지 확인할 수 있습니다.
+    console.log("WebSocket 수신 (Raw):", event.data);
     
     try {
-        // 2. '진짜' 서버 메시지 파싱
+        // '진짜' 서버 메시지 파싱
         const message = JSON.parse(event.data);
         
-        // 3. '진짜' 서버가 보낸 타입 확인
+        // ❗️ 서버가 'room_status' 또는 'notify' 타입의 메시지를 보낼 것으로 가정
         if (message.type === 'room_status' || message.type === 'notify') {
             
-            // 4. ❗️ (수정) renderMachines() (전체) 대신 updateMachineCard() (1개) 호출
+            // ❗️ (핵심) renderMachines() (전체) 대신 updateMachineCard() (1개) 호출
             updateMachineCard(message.machine_id, message.status);
             
+        } else {
+            // ❗️ [추가] 예상치 못한 메시지 타입이 오면 경고 로그
+            console.warn("알 수 없는 WebSocket 메시지 타입 수신:", message.type, message);
         }
     } catch (error) {
-        console.error("잘못된 WebSocket 메시지 수신:", event.data, error);
+        // ❗️ JSON 파싱 오류 등 잘못된 메시지 수신 시 처리
+        console.error("WebSocket 메시지 파싱 오류:", event.data, error);
         updateConnectionStatus('error');
+    }
+}
+
+// ❗️ 아래 updateMachineCard 함수도 제대로 구현되어 있어야 합니다.
+/**
+ * 세탁기 카드 1개의 상태만 업데이트하는 함수
+ * 이 함수는 DOM을 직접 조작하여 특정 카드의 내용만 바꿉니다.
+ */
+function updateMachineCard(machineId, newStatus) {
+    const card = document.getElementById(`machine-${machineId}`);
+    if (!card) {
+        console.warn(`UI 업데이트 실패: machine-${machineId} ID를 가진 카드를 찾을 수 없습니다.`);
+        return; // 화면에 없는 기기면 무시
+    }
+
+    console.log(`UI 업데이트 (ID: ${machineId}, 상태: ${newStatus})`);
+
+    // 1. CSS 클래스 변경 (애니메이션 등 적용)
+    // 기존 상태 클래스 제거 후 새 상태 클래스 추가
+    card.className = 'machine-card'; 
+    card.classList.add(`status-${newStatus.toLowerCase()}`);
+
+    // 2. 상태 텍스트 변경
+    const statusStrong = card.querySelector('.status-display strong');
+    if (statusStrong) {
+        statusStrong.textContent = translateStatus(newStatus);
+    }
+
+    // 3. 타이머 텍스트 변경 (서버가 타이머 값을 주지 않는 경우 임의로 표시)
+    const timerSpan = card.querySelector('.timer-display span');
+    if (timerSpan) {
+        if (newStatus === 'WASHING' || newStatus === 'SPINNING') {
+            timerSpan.textContent = '작동 중...'; // 또는 서버에서 타이머 값을 보낸다면 그 값을 사용
+        } else if (newStatus === 'FINISHED') {
+            timerSpan.textContent = '세탁 완료!';
+        } else {
+            timerSpan.textContent = '대기 중';
+        }
     }
 }
 
@@ -140,7 +180,6 @@ function renderMachines(machines) {
     machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
     machineDiv.id = `machine-${machine.id}`; 
 
-    // '진짜' /load는 timer를 안 주지만, '가짜' 데이터 형식은 timer: 0을 줌
     let displayTimerText = '대기 중';
     if (machine.status === 'WASHING' || machine.status === 'SPINNING') {
         displayTimerText = `약 ${machine.timer || '--'}분 남음`;
@@ -169,23 +208,20 @@ function renderMachines(machines) {
 
 /**
  * (수정 없음) 코스 선택 버튼 로직
- * (api.startCourse()를 호출하는 것은 동일함)
  */
 function addTimerLogic() {
   document.querySelectorAll('.course-btn').forEach(btn => {
-    btn.onclick = async (event) => { // ❗️ (수정) async 추가
+    btn.onclick = async (event) => { // ❗️ (async 확인)
       const machineId = parseInt(event.target.dataset.machineId, 10);
       const courseName = event.target.dataset.courseName;
 
       try {
-        // ❗️ (수정) '진짜' api.startCourse는 async임
-        const response = await api.startCourse(machineId, courseName); 
+        const response = await api.startCourse(machineId, courseName);
 
         if (response && !response.error) {
           const card = document.getElementById(`machine-${machineId}`);
           card.className = 'machine-card status-washing';
           card.querySelector('.status-display strong').textContent = '세탁 중';
-          // ❗️ (수정) '진짜' API가 timer를 반환
           card.querySelector('.timer-display span').textContent = `약 ${response.timer}분 남음`;
         } else {
           console.error("코스 시작 오류:", response.error);

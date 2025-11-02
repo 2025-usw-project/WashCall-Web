@@ -13,17 +13,11 @@ const API_BASE_URL = 'https://unconical-kyong-frolicsome.ngrok-free.dev';
 function getAuthToken() {
     return localStorage.getItem('user_token');
 }
-
-/**
- * 인증이 필요한 API를 위한 기본 'fetch' 옵션을 생성합니다.
- */
 function getFetchOptions(method, body = null) {
     const token = getAuthToken();
     const options = {
         method: method,
-        headers: {
-            'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
     };
     if (token) {
         options.headers['Authorization'] = `Bearer ${token}`;
@@ -39,14 +33,14 @@ function getFetchOptions(method, body = null) {
 // -----------------------------------------------------------------
 const api = {
     /**
-     * (main.js용) 1. 실시간 연결 시작
+     * ❗️ (수정) 1. 실시간 연결 시작 (onOpenCallback 추가)
      */
-    connect: function(onMessageCallback, onErrorCallback) {
+    connect: function(onOpenCallback, onMessageCallback, onErrorCallback) { // ❗️ 1. onOpenCallback 인자 추가
         console.log('API: "진짜" WebSocket에 연결합니다...');
         const token = getAuthToken();
         if (!token) {
             console.error("WebSocket 연결 실패: 토큰이 없습니다.");
-            if (onErrorCallback) onErrorCallback();
+            if (onErrorCallback) onErrorCallback(); 
             return;
         }
 
@@ -56,37 +50,40 @@ const api = {
 
         const ws = new WebSocket(wsUrl);
 
-        ws.onmessage = (event) => {
-            // ❗️ (중요) '진짜' 서버는 {machine_id, status} 1개만 보냅니다.
-            // main.js가 이 '진짜' 데이터를 처리할 수 있도록 
-            // '가짜' API 형식 대신 '진짜' 메시지를 그대로 전달합니다.
-            onMessageCallback(event); // event.data는 JSON 문자열
+        // ❗️ 2. (추가) onopen 이벤트 핸들러
+        ws.onopen = () => {
+            console.log("WebSocket 연결이 성공적으로 열렸습니다.");
+            if (onOpenCallback) onOpenCallback(); // ❗️ main.js에 "성공" 알림
         };
 
-        ws.onerror = () => {
-            console.error("WebSocket 오류 발생.");
+        ws.onmessage = (event) => {
+            onMessageCallback(event); // ❗️ main.js의 handleSocketMessage 호출
+        };
+        ws.onerror = (error) => {
+            console.error("WebSocket 오류 발생.", error);
             if (onErrorCallback) onErrorCallback();
         };
-        ws.onclose = () => {
-            console.warn("WebSocket 연결 종료.");
+        ws.onclose = (event) => {
+            console.warn("WebSocket 연결 종료.", event.code, event.reason);
             if (onErrorCallback) onErrorCallback();
         };
     },
 
+    // ... (api.startCourse, api.getInitialMachines, api.login, api.register 등
+    //      이전 답변의 '진짜 서버 연동 버전'과 동일한 코드) ...
+    // (이하 모든 함수를 이전 답변의 '진짜 서버 연동 완료 버전'으로 유지해야 합니다.)
+    
     /**
      * (main.js용) 2. 코스 시작 요청 (신규 API)
      */
     startCourse: async function(machineId, courseName) {
         console.log(`API: "진짜" 코스 시작 (ID: ${machineId}, 코스: ${courseName})`);
-        
-        // ❗️ (수정) '진짜' API 호출
         const response = await fetch(`${API_BASE_URL}/start_course`, getFetchOptions('POST', {
             machine_id: machineId,
             course_name: courseName
         }));
-        
         if (!response.ok) throw new Error('코스 시작 실패');
-        return await response.json(); // { status: "WASHING", timer: 55 }
+        return await response.json(); 
     },
 
     /**
@@ -96,15 +93,12 @@ const api = {
         console.log('API: "진짜" POST /load 요청 중...');
         const response = await fetch(`${API_BASE_URL}/load`, getFetchOptions('POST'));
         if (!response.ok) throw new Error('서버 응답 실패');
-        
-        const data = await response.json(); // { machine_list: [...] }
-        
-        // ❗️ '가짜' 데이터 형식(id, name)과 '진짜' (machine_id, machine_name)를 변환
+        const data = await response.json(); 
         return data.machine_list.map(m => ({
             id: m.machine_id,
             name: `${m.room_name} ${m.machine_name}`,
             status: m.status,
-            timer: 0 // (경고) '진짜' 서버 /load는 timer 정보를 주지 않음!
+            timer: 0 
         }));
     },
 
@@ -113,42 +107,37 @@ const api = {
      */
     login: async function(studentId, password) {
         console.log(`API: "진짜" 로그인 시도 (ID: ${studentId})`);
-        
         const response = await fetch(`${API_BASE_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 user_snum: parseInt(studentId, 10),
                 user_password: password,
-                fcm_token: "temp_fcm_token_placeholder" // (TODO: push.js와 연동 필요)
+                fcm_token: "temp_fcm_token_placeholder"
             })
         });
-
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.detail || '로그인 실패');
         }
-        
-        const data = await response.json(); // { "access_token": "..." }
+        const data = await response.json(); 
         return data.access_token;
     },
 
     /**
      * (auth.js용) 5. 회원가입 요청 (POST /register)
      */
-    register: async function(username, studentId, password) { // ❗️ 1. username 인자 추가
-        console.log(`API: "진짜" 회원가입 시도 (ID: ${studentId}, 이름: ${username})`);
-        
+    register: async function(username, studentId, password) { // ❗️ (수정됨) username 인자 추가
+        console.log(`API: "진짜" 회원가입 시도 (ID: ${studentId})`);
         const response = await fetch(`${API_BASE_URL}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_username: username, // ❗️ 2. 임시 이름 대신 auth.js가 전달한 진짜 이름 사용
+                user_username: username, // ❗️ (수정됨) auth.js에서 받은 이름 사용
                 user_password: password,
                 user_snum: parseInt(studentId, 10)
             })
         });
-        
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.detail || '회원가입 실패');
@@ -162,7 +151,7 @@ const api = {
         console.log('API: "진짜" GET /statistics/congestion 요청 중...');
         const response = await fetch(`${API_BASE_URL}/statistics/congestion`, getFetchOptions('GET'));
         if (!response.ok) throw new Error('혼잡도 데이터 로딩 실패');
-        return await response.json(); // { "월": [..], "화": [..] }
+        return await response.json(); 
     },
 
     /**
@@ -172,7 +161,7 @@ const api = {
         console.log('API: "진짜" POST /survey 제출 중...');
         const response = await fetch(`${API_BASE_URL}/survey`, getFetchOptions('POST', surveyData));
         if (!response.ok) throw new Error('설문 제출 실패');
-        return await response.json(); // { message: "..." }
+        return await response.json(); 
     },
 
     /**
@@ -193,29 +182,26 @@ const api = {
         console.log("API: '진짜' GET /posts 요청 중...");
         const response = await fetch(`${API_BASE_URL}/posts`, getFetchOptions('GET'));
         if (!response.ok) throw new Error('게시글 로딩 실패');
-        return await response.json(); // List[Post]
+        return await response.json(); 
     },
-
     getPostById: async function(postId) {
         console.log(`API: '진짜' GET /posts/${postId} 요청 중...`);
         const response = await fetch(`${API_BASE_URL}/posts/${postId}`, getFetchOptions('GET'));
         if (!response.ok) throw new Error('게시글 상세 로딩 실패');
-        return await response.json(); // { post: {...}, comments: [...] }
+        return await response.json(); 
     },
-
     createPost: async function(newPostData) {
         console.log("API: '진짜' POST /posts 요청 중...");
         const response = await fetch(`${API_BASE_URL}/posts`, getFetchOptions('POST', newPostData));
         if (!response.ok) throw new Error('글 등록 실패');
-        return await response.json(); // 생성된 Post 객체
+        return await response.json(); 
     },
-
     createComment: async function(postId, content) {
         console.log(`API: '진짜' POST /posts/${postId}/comment 요청 중...`);
         const response = await fetch(`${API_BASE_URL}/posts/${postId}/comment`, getFetchOptions('POST', {
             content: content
         }));
         if (!response.ok) throw new Error('댓글 등록 실패');
-        return await response.json(); // 생성된 Comment 객체
+        return await response.json(); 
     }
 };
