@@ -1,0 +1,471 @@
+/* css/style.css (파일 전체 덮어쓰기) */
+/* (모든 중복과 오류가 수정된 최종본) */
+
+/* --- 1. 기본 설정 --- */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f4f7f6;
+  margin: 0;
+  padding-bottom: 50px;
+  color: #333;
+}
+
+.container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 0 20px;
+}
+
+/* --- 2. 네비게이션 바 디자인 --- */
+.navbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #ddd;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative; /* 모바일 메뉴의 기준점이 됨 */
+}
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #007bff; /* 파란색 포인트 */
+
+  text-decoration: none;
+}
+
+/* (데스크탑) 네비게이션 링크 */
+.navbar-nav {
+  list-style: none;
+  display: flex;
+  margin: 0;
+  padding: 0;
+
+  z-index: 1000;
+}
+.navbar-nav li {
+  margin-left: 20px;
+}
+.navbar-nav a {
+  text-decoration: none;
+  color: #555;
+  font-weight: 500;
+}
+
+/* (모바일) 햄버거 버튼 */
+.navbar-toggle {
+  display: none; /* 데스크탑에서는 숨김 */
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: #333;
+}
+
+/* --- 3. 메인 헤더 --- */
+.main-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.main-header h2 {
+  font-size: 2rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+.main-header p {
+  font-size: 1.1rem;
+  color: #666;
+}
+
+/* --- 4. 세탁기 리스트 컨테이너 --- */
+#machine-list-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+/* --- 5. 세탁기 카드 디자인 --- */
+.machine-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
+  border-left: 5px solid #ccc;
+}
+.machine-card h3 {
+  margin-top: 0;
+  color: #222;
+}
+.status-display, .timer-display {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 15px;
+}
+.status-display strong {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+/* --- 6. 상태별 디자인 --- */
+.status-washing {
+  border-left-color: #007bff;
+}
+.status-washing .status-display strong {
+  color: #007bff;
+}
+.status-spinning {
+  border-left-color: #ffc107;
+  animation: shake 0.5s infinite;
+}
+.status-spinning .status-display strong {
+  color: #d39e00;
+}
+.status-finished {
+  border-left-color: #28a745;
+}
+.status-finished .status-display strong {
+  color: #28a745;
+}
+.status-off {
+  border-left-color: #6c757d;
+  opacity: 0.8;
+}
+.status-off .status-display strong {
+  color: #6c757d;
+}
+
+/* --- 7. 코스 버튼 디자인 --- */
+.course-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.course-btn {
+  flex-grow: 1;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px 5px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.course-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* --- 8. (애니메이션) 덜덜 떠는 효과 --- */
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-1px, 0px) rotate(1deg); }
+  /* ... (나머지 애니메이션 프레임) ... */
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+/* --- 10. 혼잡도 페이지 버튼 (congestion.html에서 이동) --- */
+.day-selector {
+  text-align: center;
+  margin-bottom: 20px;
+  
+  /* ❗️ [수정] 햄버거 메뉴를 위해 강제로 가로 스크롤 제거 */
+  overflow-x: hidden; 
+  white-space: normal; 
+  padding-bottom: 10px;
+  
+  /* 7개 버튼을 한 줄에 강제 배치하기 위한 속성 */
+  display: flex; 
+  justify-content: space-between;
+  align-items: center;
+}
+.day-btn {
+    padding: 8px 12px;
+    margin: 0 4px;
+    font-size: 1rem;
+    border: 1px solid #007bff;
+    background-color: #f0f0f0;
+    color: #007bff;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.day-btn:hover {
+    background-color: #e0e0e0;
+}
+.day-btn.active {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+/* --- 9. 로그인 / 회원가입 폼 디자인 --- */
+.auth-container {
+  max-width: 450px;
+  margin: 50px auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.auth-form h2 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 25px;
+}
+.form-group {
+  margin-bottom: 20px;
+}
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #555;
+}
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box; 
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+.auth-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.auth-button:hover {
+  background-color: #0056b3;
+}
+.auth-toggle {
+  text-align: center;
+  margin-top: 20px;
+  color: #666;
+}
+.auth-toggle a {
+  color: #007bff;
+  font-weight: 500;
+  text-decoration: none;
+}
+.auth-toggle a:hover {
+  text-decoration: underline;
+}
+
+/* --- 11. 서베이 폼 컨테이너 --- */
+.survey-container {
+  max-width: 600px;
+  margin: 30px auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.radio-group label {
+  display: block;
+  margin-bottom: 10px;
+  font-weight: 400;
+  cursor: pointer;
+}
+.radio-group input {
+  margin-right: 10px;
+}
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  box-sizing: border-box; 
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  resize: vertical;
+}
+
+/* --- 12. 푸시 알림 버튼 --- */
+.push-container {
+  background-color: #fff;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+  text-align: center;
+}
+#enable-push-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+#enable-push-button:hover {
+  background-color: #0056b3;
+}
+#enable-push-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* --- 13. 에러 메시지 스타일 --- */
+.error-message {
+  color: #D8000C;
+  background-color: #FFD2D2;
+  border: 1px solid #D8000C;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-weight: 500;
+  display: none; /* 평소에는 숨겨둠 */
+}
+
+/* --- 14. 모바일 반응형 (햄버거 버튼 + 비율 수정 - 통합본) --- */
+@media (max-width: 768px) {
+  
+  /* 1. 햄버거 버튼 보이기 */
+  .navbar-toggle {
+    display: block; /* 모바일에서 햄버거 버튼 보이기 */
+    z-index: 1001;
+  }
+  
+  /* 2. 네비게이션 메뉴 (측면 슬라이드) */
+  .navbar-nav {
+    position: fixed; 
+    top: 0;
+    right: 0; /* 오른쪽 기준으로 정렬 */
+    width: 250px; /* 메뉴의 너비 */
+    height: 100vh; /* 화면 전체 높이 */
+    z-index: 1000; /* ❗️ 메뉴가 본문 위에 오게 설정 */
+    
+    display: flex; 
+    transform: translateX(100%); /* 100% 오른쪽으로 이동 (화면 밖) */
+    transition: transform 0.3s ease-in-out; /* 애니메이션 */
+
+    background-color: #ffffff; /* 배경색 */
+    flex-direction: column; /* 세로로 쌓기 */
+    margin: 0;
+    padding: 20px 0 0 0; /* 위쪽 여백 */
+    box-shadow: -2px 0 8px rgba(0,0,0,0.15); /* 왼쪽 그림자 */
+  }
+
+  /* 3. JS가 'active' 클래스를 추가하면 메뉴 보이기 */
+  .navbar-nav.active {
+    transform: translateX(0%); /* 0% (원래 위치)로 슬라이드 */
+  }
+
+  /* 4. 모바일 메뉴 링크 스타일 */
+  .navbar-nav li {
+    margin-left: 0;
+    width: 100%;
+  }
+  .navbar-nav a {
+    display: block;
+    padding: 15px 25px; /* 좌우 여백 추가 */
+    border-bottom: 1px solid #f0f0f0;
+    color: #333; /* 글자색 진하게 */
+    font-weight: 500;
+  }
+  .navbar-nav a:hover {
+    background-color: #f9f9f9;
+  }
+
+  /* 5. 로그인/서베이 폼 모바일 비율 수정 */
+  .auth-container,
+  .survey-container {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 20px; 
+  }
+
+  /* 6. 혼잡도 페이지 모바일 UI 수정 */
+  .day-selector {
+    text-align: center;
+    margin-bottom: 20px;
+    
+    /* ❗️ [수정] 스크롤 속성 제거 및 Flexbox 추가 */
+    overflow-x: hidden; /* 스크롤 방지 */
+    white-space: normal; /* 줄바꿈 허용 */
+    padding-bottom: 10px;
+    
+    /* 7개 버튼을 한 줄에 강제 배치하기 위한 속성 */
+    display: flex; 
+    justify-content: space-between;
+    align-items: center;
+  }
+  .day-selector::-webkit-scrollbar {
+    display: none; 
+  }
+
+  .day-btn {
+    flex: 1 1 0%; 
+    min-width: 0;
+    margin: 0 2px; /* 버튼 간 좁은 여백만 남김 */
+    padding: 8px 0; /* 좌우 패딩을 0으로 줄여 공간 확보 */
+
+    /* (나머지 스타일은 그대로 유지) */
+    font-size: 0.9rem; /* 폰트를 조금 줄여 공간 확보 */
+    border: 1px solid #007bff;
+    background-color: #f0f0f0;
+    color: #007bff;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s
+  }
+
+  /* ❗️ [수정] 그래프 가시성 수정 */
+  /* 'overflow-x: auto'와 'min-width: 700px'를 제거하여 */
+  /* 햄버거 메뉴와의 스크롤 충돌을 방지합니다. */
+  .chart-container {
+    padding-left: 0px; /* 꽉 차게 */
+    padding-right: 0px;
+    overflow-x: hidden; /* 가로 스크롤 금지 */
+  }
+  
+  /* ❗️ [수정] 캔버스(그래프) 자체의 너비/높이 설정 */
+  #congestionChart {
+    min-width: unset; /* 최소 너비 제거 */
+    width: 100% !important; /* 부모(div) 너비에 꽉 맞춤 */
+    max-height: 400px; /* 모바일에서 너무 커지지 않게 */
+  }
+
+} /* ( @media 블록 닫는 괄호 ) */
+
+
+/* css/style.css (맨 아래에 추가) */
+/* --- 15. 서버 연결 상태 UI --- */
+.status-alert {
+  padding: 15px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 20px;
+  opacity: 0; /* JS로 제어할 것이므로 기본은 숨김 */
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* 연결 성공 (SUCCESS) */
+.status-alert.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* 연결 끊김/오류 (ERROR) */
+.status-alert.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashCall - 설문조사</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <style>
+        .survey-form {
+            background-color: #fff;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        .form-group .radio-group {
+            display: flex;
+            gap: 15px;
+        }
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            min-height: 120px;
+            resize: vertical;
+        }
+        .submit-btn {
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">WashCall</a>
+
+        <button class="navbar-toggle" id="navbarToggle">
+            &#9776; </button>
+        
+        <ul class="navbar-nav" id="navbarMenu">
+            <li><a href="board.html">게시판</a></li>
+            <li><a href="index.html">실시간 현황</a></li>
+            <li><a href="congestion.html">혼잡도 분석</a></li>
+            <li><a href="survey.html">설문조사</a></li>
+            <li><a href="#" id="logout-button">로그아웃</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        
+        <header class="main-header">
+            <h2>서비스 만족도 설문조사</h2>
+            <p>WashCall 서비스 개선을 위해 소중한 의견을 남겨주세요.</p>
+        </header>
+
+        <form id="survey-form" class="survey-form">
+            
+            <div class="form-group">
+                <label>1. 서비스에 전반적으로 만족하십니까?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="satisfaction" value="5" required> 매우 만족</label>
+                    <label><input type="radio" name="satisfaction" value="4"> 만족</label>
+                    <label><input type="radio" name="satisfaction" value="3"> 보통</label>
+                    <label><input type="radio" name="satisfaction" value="2"> 불만족</label>
+                    <label><input type="radio" name="satisfaction" value="1"> 매우 불만족</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="survey-suggestion">2. 건의사항 및 버그 리포트</label>
+                <textarea id="survey-suggestion" name="suggestion" placeholder="자유롭게 의견을 남겨주세요..."></textarea>
+            </div>
+            
+            <button type="submit" class="submit-btn">제출하기</button>
+        </form>
+
+    </main>
+
+    <script src="js/mock-data.js"></script>
+
+    <script src="js/server-api.js"></script> 
+
+    <script src="js/auth.js"></script> 
+
+    <script src="js/survey.js"></script>
+
+    <script src="js/navbar.js"></script>
+
+    </body>
+    </html>

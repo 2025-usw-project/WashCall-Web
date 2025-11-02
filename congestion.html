@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WashCall - 혼잡도 분석</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+
+    <link rel="icon" href="favicon.png" type="image/png">
+    
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="navbar-brand">WashCall</a>
+
+        <button class="navbar-toggle" id="navbarToggle">
+            &#9776; </button>
+        
+        <ul class="navbar-nav" id="navbarMenu">
+            <li><a href="board.html">게시판</a></li>
+            <li><a href="index.html">실시간 현황</a></li>
+            <li><a href="congestion.html">혼잡도 분석</a></li>
+            <li><a href="survey.html">설문조사</a></li>
+            <li><a href="#" id="logout-button">로그아웃</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        
+        <header class="main-header">
+            <h2>시간대별 혼잡도</h2>
+            <p>요일별 평균 세탁기 사용 현황을 확인하세요.</p>
+        </header>
+
+        <div class="day-selector">
+            <button class="day-btn active" data-day="월">월</button>
+            <button class="day-btn" data-day="화">화</button>
+            <button class="day-btn" data-day="수">수</button>
+            <button class="day-btn" data-day="목">목</button>
+            <button class="day-btn" data-day="금">금</button>
+            <button class="day-btn" data-day="토">토</button>
+            <button class="day-btn" data-day="일">일</button>
+        </div>
+
+        <div>
+            <canvas id="congestionChart"></canvas>
+        </div>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="js/mock-data.js"></script>
+
+    <script src="js/server-api.js"></script> 
+
+    <script src="js/auth.js"></script> 
+
+    <script src="js/congestion.js"></script>
+
+    <script src="js/navbar.js"></script>
+
+    </body>
+    </html>
