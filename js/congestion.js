@@ -20,7 +20,14 @@ async function startChartDrawing() { // [수정] 함수 이름 변경
         return;
     }
 
-    const congestionData = await api.getCongestionData();
+    let congestionData;
+    try {
+        congestionData = await api.getCongestionData();
+    } catch (error) {
+        console.error('API: 혼잡도 데이터 로드 실패:', error);
+        alert('혼잡도 데이터를 불러오는데 실패했습니다. 다시 시도해주세요.');
+        return;
+    }
 
     const labels = [];
     for (let i = 9; i <= 21; i++) { // 9시~21시

@@ -258,44 +258,8 @@ const api = {
 
             console.log("API: 혼잡도 데이터 응답 (원본):", serverData);
 
-            // ❗️ [핵심 수정]: 서버 데이터를 Chart.js 형식으로 변환
-            const labels = []; // 시간대 레이블 (예: "00시", "01시", ...)
-            for (let i = 0; i < 24; i++) { // 하루 24시간을 기준으로 레이블 생성
-                labels.push(`${i.toString().padStart(2, '0')}시`);
-            }
-
-            const datasets = [];
-            const colors = { // 각 요일별 차트 색상 (원하는대로 추가/변경 가능)
-                "월": { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' },
-                "화": { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' },
-                "수": { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' },
-                "목": { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' },
-                "금": { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' },
-                "토": { borderColor: 'rgba(255, 159, 64, 1)', backgroundColor: 'rgba(255, 159, 64, 0.2)' },
-                "일": { borderColor: 'rgba(199, 199, 199, 1)', backgroundColor: 'rgba(199, 199, 199, 0.2)' },
-            };
-
-
-            for (const day in serverData) { // "월", "화", ... 요일을 순회
-                if (Object.hasOwnProperty.call(serverData, day)) {
-                    const congestionValues = serverData[day]; // 각 요일의 혼잡도 배열
-                    
-                    // Chart.js datasets 형식에 맞게 변환
-                    datasets.push({
-                        label: day, // 요일을 레이블로 사용 (예: "월")
-                        data: congestionValues,
-                        borderColor: colors[day] ? colors[day].borderColor : 'rgba(0, 0, 0, 1)', // 색상 적용 또는 기본값
-                        backgroundColor: colors[day] ? colors[day].backgroundColor : 'rgba(0, 0, 0, 0.2)',
-                        fill: false, // 선 그래프로 표시
-                        tension: 0.1 // 부드러운 선
-                    });
-                }
-            }
-
-            const chartJsData = { labels, datasets };
-            console.log("API: Chart.js 변환 데이터:", chartJsData);
-
-            return chartJsData; // 변환된 데이터를 반환
+            // ❗️ 서버 원본 데이터를 그대로 반환 (congestion.js에서 처리)
+            return serverData;
         } catch (error) {
             console.error('API: 혼잡도 데이터 로드 실패:', error);
             throw error;
