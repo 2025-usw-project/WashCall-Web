@@ -469,3 +469,63 @@ body {
   color: #721c24;
   border: 1px solid #f5c6cb;
 }
+
+.notify-me-container {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+.notify-me-label {
+  margin-left: 10px;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* The switch - a checkbox hidden */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* 너비 수정 */
+  height: 28px; /* 높이 수정 */
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* The slider */
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 28px; /* 높이와 맞춤 */
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px; /* 원 크기 */
+  width: 20px; /* 원 크기 */
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #007bff; /* 활성화 색상 */
+}
+input:checked + .slider:before {
+  -webkit-transform: translateX(22px); /* 이동 거리 */
+  -ms-transform: translateX(22px);
+  transform: translateX(22px);
+}

@@ -14,7 +14,8 @@
         <a href="index.html" class="navbar-brand">WashCall</a>
 
         <button class="navbar-toggle" id="navbarToggle">
-            &#9776; </button>
+            &#9776; 
+        </button>
         
         <ul class="navbar-nav" id="navbarMenu">
             <li><a href="board.html">게시판</a></li>
@@ -37,24 +38,21 @@
         </div>
 
         <div class="push-container">
-            <button id="enable-push-button">🔔 알림 구독하기</button>
+            <button id="enable-push-button">...</button> 
         </div>
-
         <div id="machine-list-container">
             </div>
 
     </main>
 
-<script src="js/mock-data.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
 
     <script src="js/server-api.js"></script> 
-    
+    <script src="js/mock-data.js"></script>
     <script src="js/auth.js"></script> 
-    
-    <script src="js/main.js"></script>
-
+    <script src="js/main.js"></script>
     <script src="js/push.js"></script>
     <script src="js/navbar.js"></script>
-    
-    </body>
-    </html>
+    </body>
+</html>
