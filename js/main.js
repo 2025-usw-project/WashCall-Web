@@ -7,6 +7,10 @@ let connectionStatusElement;
 document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
         main();
+        
+        // ✅ FCM 알림 클릭 시 스크롤 기능
+        setupServiceWorkerMessageListener();
+        handleInitialHashScroll();
     }
 });
 
@@ -156,7 +160,8 @@ function renderMachines(machines) {
         const machineDiv = document.createElement('div');
         machineDiv.className = 'machine-card';
         machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
-        machineDiv.id = `machine-${machine.machine_id}`; 
+        machineDiv.id = `machine-${machine.machine_id}`;
+        machineDiv.dataset.machineId = machine.machine_id; // ✅ FCM 알림 클릭 시 스크롤용 
         
         let displayTimerText = '대기 중';
         if ((machine.status === 'WASHING' || machine.status === 'SPINNING')) {
@@ -302,4 +307,76 @@ function translateStatus(status) {
         case 'OFF': return '대기 중';
         default: return status;
     }
+}
+
+// ===== 🔔 FCM 알림 클릭 시 스크롤 기능 =====
+
+/**
+ * Service Worker로부터 메시지를 받아서 특정 세탁기로 스크롤
+ */
+function setupServiceWorkerMessageListener() {
+    if (!('serviceWorker' in navigator)) {
+        console.warn('[main.js] Service Worker를 지원하지 않는 브라우저입니다.');
+        return;
+    }
+    
+    navigator.serviceWorker.addEventListener('message', event => {
+        console.log('[main.js] Service Worker로부터 메시지 수신:', event.data);
+        
+        if (event.data && event.data.type === 'SCROLL_TO_MACHINE') {
+            const machineId = event.data.machine_id;
+            if (machineId) {
+                scrollToMachine(machineId);
+            }
+        }
+    });
+    
+    console.log('[main.js] Service Worker 메시지 리스너 등록 완료');
+}
+
+/**
+ * 페이지 로드 시 URL 해시가 있으면 해당 세탁기로 스크롤
+ * 예: index.html#machine-123
+ */
+function handleInitialHashScroll() {
+    const hash = window.location.hash; // 예: "#machine-123"
+    
+    if (hash && hash.startsWith('#machine-')) {
+        const machineId = hash.replace('#machine-', '');
+        
+        // DOM이 완전히 로드될 때까지 대기 후 스크롤
+        setTimeout(() => {
+            scrollToMachine(machineId);
+        }, 500); // 500ms 대기 (세탁기 목록이 렌더링될 시간)
+        
+        console.log('[main.js] URL 해시 감지, 스크롤 예약:', machineId);
+    }
+}
+
+/**
+ * 특정 세탁기 카드로 부드럽게 스크롤하고 하이라이트 효과
+ */
+function scrollToMachine(machineId) {
+    const machineCard = document.querySelector(`[data-machine-id="${machineId}"]`);
+    
+    if (!machineCard) {
+        console.warn(`[main.js] 세탁기 카드를 찾을 수 없습니다: machine_id=${machineId}`);
+        return;
+    }
+    
+    // 1. 부드럽게 스크롤
+    machineCard.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+    });
+    
+    // 2. 하이라이트 효과 (배경색 깜빡임)
+    machineCard.style.transition = 'background-color 0.3s ease';
+    machineCard.style.backgroundColor = '#fff3cd'; // 연한 노란색
+    
+    setTimeout(() => {
+        machineCard.style.backgroundColor = ''; // 원래대로
+    }, 2000);
+    
+    console.log(`[main.js] 세탁기로 스크롤 완료: machine_id=${machineId}`);
 }
