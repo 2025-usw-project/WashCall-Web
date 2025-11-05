@@ -1,6 +1,6 @@
 // js/main.js
-// ❗️ ('일회성 알림' + '코스 타이머' + '버튼 비활성화' + '5초 재연결' + '개별 토글 팝업'
-// ❗️ + '신중한 업데이트' + '클릭 시 모든 버튼 비활성화' 최종본)
+// ❗️ (타이머 관련 로직을 '임시로 모두 제거'한 롤백 버전)
+// ❗️ ('일회성 알림' + '버튼 비활성화' + '5초 재연결' + '개별 토글 팝업' 로직은 '유지')
 
 let connectionStatusElement;
 
@@ -18,7 +18,7 @@ async function main() {
     try {
         updateConnectionStatus('connecting'); 
         const machines = await api.getInitialMachines();
-        renderMachines(machines);
+        renderMachines(machines); // ❗️ 수정된 함수가 연결됨
         tryConnect(); // 웹소켓 연결 시작
     } catch (error) {
         console.error("초기 세탁기 목록 로드 실패:", error);
@@ -33,7 +33,7 @@ function tryConnect() {
             updateConnectionStatus('success');
         },
         (event) => {
-            handleSocketMessage(event);
+            handleSocketMessage(event); // ❗️ 수정된 함수가 연결됨
         },
         () => {
             updateConnectionStatus('error');
@@ -71,21 +71,23 @@ function updateConnectionStatus(status) {
     }
 }
 
-// [수정 없음] WebSocket 메시지 처리 (일회성 알림 로직 + 웹소켓 타이머 동기화 포함)
+/**
+ * ❗️ [핵심 수정] WebSocket 메시지 처리 (타이머 로직 제거)
+ */
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
         const machineId = message.machine_id;
         const newStatus = message.status;
-        const newTimer = message.timer || null; 
+        // const newTimer = message.timer || null; // ❗️ (타이머 로직 임시 제거)
 
         if (message.type === 'room_status') {
-            updateMachineCard(machineId, newStatus, newTimer);
+            updateMachineCard(machineId, newStatus); // ❗️ newTimer 인자 제거
         } 
         else if (message.type === 'notify') {
             const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus)}`;
             alert(msg); 
-            updateMachineCard(machineId, newStatus, newTimer);
+            updateMachineCard(machineId, newStatus); // ❗️ newTimer 인자 제거
         }
 
         if (newStatus === 'FINISHED') {
@@ -112,8 +114,10 @@ async function turnOffToggle(machineId) {
 }
 
 
-// [수정 없음] updateMachineCard (버튼 비활성화 + 웹소켓 타이머 동기화 로직 포함)
-function updateMachineCard(machineId, newStatus, newTimer = null) {
+/**
+ * ❗️ [핵심 수정] updateMachineCard (타이머 로직 제거)
+ */
+function updateMachineCard(machineId, newStatus) { // ❗️ newTimer 인자 제거
     const card = document.getElementById(`machine-${machineId}`);
     if (!card) return; 
 
@@ -125,11 +129,10 @@ function updateMachineCard(machineId, newStatus, newTimer = null) {
         statusStrong.textContent = translateStatus(newStatus);
     }
 
+    // ❗️ [수정] 타이머 로직 제거
     const timerSpan = card.querySelector('.timer-display span');
     if (timerSpan) {
-        if (newTimer !== null && newTimer > 0 && (newStatus === 'WASHING' || newStatus === 'SPINNING')) {
-            timerSpan.textContent = `${newTimer}분 남음`;
-        } else if (newStatus === 'WASHING' || newStatus === 'SPINNING') {
+        if (newStatus === 'WASHING' || newStatus === 'SPINNING') {
             timerSpan.textContent = '작동 중...';
         } else if (newStatus === 'FINISHED') {
             timerSpan.textContent = '세탁 완료!';
@@ -138,19 +141,21 @@ function updateMachineCard(machineId, newStatus, newTimer = null) {
         }
     }
 
+    // [수정 없음] 버튼 비활성화 로직
     const courseButtons = card.querySelectorAll('.course-btn');
     const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
     courseButtons.forEach(btn => {
         btn.disabled = shouldBeDisabled;
-        // ❗️ 'FINISHED' 또는 'OFF'가 되어 활성화될 때
         if (!shouldBeDisabled) {
-            btn.textContent = btn.dataset.courseName; // 텍스트를 "요청 중..."에서 원래 코스 이름으로 복구
+            btn.textContent = btn.dataset.courseName; 
         }
     });
 }
 
-// [수정 없음] renderMachines (새로고침 시 타이머 로드 로직 포함)
+/**
+ * ❗️ [핵심 수정] renderMachines (타이머 로직 제거)
+ */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
     if (!container) return;
@@ -162,18 +167,14 @@ function renderMachines(machines) {
         machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
         machineDiv.id = `machine-${machine.machine_id}`; 
         
+        // ❗️ [수정] 타이머 로직 제거
         let displayTimerText = '대기 중';
-        const machineTimer = machine.timer;
-
         if ((machine.status === 'WASHING' || machine.status === 'SPINNING')) {
-            if (machineTimer !== null && machineTimer !== undefined && machineTimer > 0) {
-                displayTimerText = `${machineTimer}분 남음`;
-            } else {
-                displayTimerText = '작동 중...'; 
-            }
+            displayTimerText = '작동 중...'; 
         } else if (machine.status === 'FINISHED') {
             displayTimerText = '세탁 완료!';
         }
+        // ❗️ [수정] 끝
 
         const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING');
         const disabledAttribute = isDisabled ? 'disabled' : '';
@@ -211,7 +212,7 @@ function renderMachines(machines) {
 }
 
 /**
- * ❗️ [핵심 수정] 코스 버튼 로직 (클릭 즉시 모든 버튼 비활성화)
+ * ❗️ [핵심 수정] 코스 버튼 로직 (타이머 로직 제거)
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -219,12 +220,10 @@ function addCourseButtonLogic() {
             const machineId = parseInt(clickedBtn.dataset.machineId, 10);
             const courseName = clickedBtn.dataset.courseName;
             
-            // 1. ❗️ [신규] 카드의 모든 버튼을 찾음
             const card = document.getElementById(`machine-${machineId}`);
             if (!card) return;
             const allButtonsOnCard = card.querySelectorAll('.course-btn');
 
-            // 2. ❗️ [신규] 모든 버튼을 비활성화하고, 클릭한 버튼 텍스트 변경
             allButtonsOnCard.forEach(btn => {
                 btn.disabled = true;
                 if (btn === clickedBtn) {
@@ -233,15 +232,14 @@ function addCourseButtonLogic() {
             });
 
             try {
-                // 3. 서버에 /start_course API 호출
+                // ❗️ /start_course API는 여전히 호출
                 const result = await api.startCourse(machineId, courseName);
                 
-                // 4. (성공) 서버 응답으로 UI 업데이트
-                if (result && result.status && result.timer !== undefined) {
-                    // updateMachineCard가 'WASHING' 상태를 보고 버튼을 disabled로 유지함
-                    updateMachineCard(machineId, result.status, result.timer);
+                // ❗️ [수정] 서버 응답에서 'status'만 확인 (timer 제거)
+                if (result && result.status) {
+                    updateMachineCard(machineId, result.status); // ❗️ newTimer 인자 제거
                 } else {
-                     throw new Error('서버 응답에 timer 또는 status 필드가 없습니다.');
+                     throw new Error('서버 응답에 status 필드가 없습니다.');
                 }
                 
                 console.log(`API: 코스 시작 요청 성공: ${JSON.stringify(result)}`);
@@ -250,10 +248,9 @@ function addCourseButtonLogic() {
                 console.error("API: 코스 시작 요청 실패:", error);
                 alert(`코스 시작 실패: ${error.message}`);
                 
-                // 5. ❗️ (롤백) 실패 시, 모든 버튼을 다시 활성화
                 allButtonsOnCard.forEach(btn => {
                     btn.disabled = false;
-                    btn.textContent = btn.dataset.courseName; // 원래 텍스트로 복구
+                    btn.textContent = btn.dataset.courseName; 
                 });
             }
         };
