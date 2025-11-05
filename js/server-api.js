@@ -55,8 +55,15 @@ async function fetchWithFallback(endpoint, options, retryCount = 0) {
         
         // ❗️ 4XX/5XX 에러 처리 (404 포함 모두 폴백)
         if (!response.ok) {
-            // 재시도하지 않을 에러들 (인증 관련)
-            const noRetryStatuses = [401, 403]; // 인증/권한 에러는 재시도 무의미
+            // ❗️ 401 인증 에러 특별 처리
+            if (response.status === 401) {
+                console.warn('🔒 API: 인증 실패 (401) - 토큰이 유효하지 않습니다');
+                handleUnauthorized(); // 인증 실패 처리
+                throw new Error('유효하지 않은 토큰입니다');
+            }
+            
+            // 재시도하지 않을 에러들 (403만)
+            const noRetryStatuses = [403]; // 권한 에러는 재시도 무의미
             
             if (noRetryStatuses.includes(response.status)) {
                 console.warn(`⚠️ API: 재시도 불가능한 에러 (${response.status})`);
@@ -74,6 +81,11 @@ async function fetchWithFallback(endpoint, options, retryCount = 0) {
     } catch (error) {
         console.error(`❌ API: ${url} 요청 실패:`, error.message);
         
+        // 인증 에러는 재시도하지 않음
+        if (error.message === '유효하지 않은 토큰입니다') {
+            throw error;
+        }
+        
         // 재시도 가능한지 확인
         if (retryCount < MAX_RETRIES - 1) {
             console.log(`🔄 API: 폴백 시도 중... (${retryCount + 1}/${MAX_RETRIES - 1})`);
@@ -86,6 +98,23 @@ async function fetchWithFallback(endpoint, options, retryCount = 0) {
         console.error('💥 API: 모든 서버 연결 실패!');
         throw new Error('모든 서버와 연결할 수 없습니다. 네트워크 상태를 확인해주세요.');
     }
+}
+
+/**
+ * 401 인증 실패 처리 함수
+ * 토큰을 제거하고 로그인 페이지로 리다이렉트
+ */
+function handleUnauthorized() {
+    // 1. 토큰 제거
+    localStorage.removeItem('user_token');
+    
+    // 2. 사용자에게 알림
+    alert('유효하지 않은 토큰입니다. 다시 로그인해주세요.');
+    
+    // 3. 로그인 페이지로 리다이렉트 (0.5초 후)
+    setTimeout(() => {
+        window.location.href = 'login.html';
+    }, 500);
 }
 
 // ========== 기존 헬퍼 함수 ==========
