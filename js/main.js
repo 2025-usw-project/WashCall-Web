@@ -77,7 +77,7 @@ async function handleSocketMessage(event) {
         const message = JSON.parse(event.data); 
         const machineId = message.machine_id;
         const newStatus = message.status;
-        const newTimer = message.timer || null; // (서버가 timer를 준다고 가정)
+        const newTimer = message.timer || null; 
 
         if (message.type === 'room_status') {
             updateMachineCard(machineId, newStatus, newTimer);
@@ -138,16 +138,19 @@ function updateMachineCard(machineId, newStatus, newTimer = null) {
         }
     }
 
+    // --- [핵심] 버튼 활성화/비활성화 로직 ---
     const courseButtons = card.querySelectorAll('.course-btn');
+    // newStatus가 'FINISHED'이거나 'OFF'이면 false가 됨
     const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
     courseButtons.forEach(btn => {
+        // 'FINISHED'일 때 btn.disabled = false가 실행됨
         btn.disabled = shouldBeDisabled;
-        // ❗️ (Q1 수정) 만약 버튼이 '요청 중...'이었다면, 원래 텍스트로 복구
         if (!shouldBeDisabled && btn.textContent === "요청 중...") {
-            btn.textContent = btn.dataset.courseName; // (원래 코스 이름으로 복구)
+            btn.textContent = btn.dataset.courseName; 
         }
     });
+    // --- [핵심] 끝 ---
 }
 
 // [수정 없음] renderMachines (새로고침 시 타이머 로드 로직 포함)
@@ -206,32 +209,24 @@ function renderMachines(machines) {
         container.appendChild(machineDiv);
     });
 
-    addCourseButtonLogic(); // ❗️ 수정된 함수가 연결됨
+    addCourseButtonLogic();
     addNotifyMeLogic();
 }
 
-/**
- * ❗️ [핵심 수정] 코스 버튼 로직 (신중한 업데이트 - 서버 응답 대기)
- */
+// [수정 없음] 코스 버튼 로직 (신중한 업데이트 - 서버 응답 대기)
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(btn => {
         btn.onclick = async (event) => { 
             const machineId = parseInt(event.target.dataset.machineId, 10);
             const courseName = event.target.dataset.courseName;
             
-            // 1. ❗️ [수정] 선제적 UI 업데이트 (updateMachineCard) 제거
-            
-            // 2. ❗️ [신규] 클릭한 버튼만 임시 비활성화 및 텍스트 변경
             btn.disabled = true;
             btn.textContent = "요청 중...";
 
             try {
-                // 3. 서버에 /start_course API 호출
                 const result = await api.startCourse(machineId, courseName);
                 
-                // 4. (성공) 서버 응답으로 UI 업데이트
                 if (result && result.status && result.timer !== undefined) {
-                    // updateMachineCard가 'WASHING' 상태를 보고 버튼을 비활성화시킬 것임
                     updateMachineCard(machineId, result.status, result.timer);
                 } else {
                      throw new Error('서버 응답에 timer 또는 status 필드가 없습니다.');
@@ -243,7 +238,6 @@ function addCourseButtonLogic() {
                 console.error("API: 코스 시작 요청 실패:", error);
                 alert(`코스 시작 실패: ${error.message}`);
                 
-                // 5. ❗️ (롤백) 실패 시, 버튼만 다시 활성화 (상태는 'OFF'로 롤백하지 않음)
                 btn.disabled = false;
                 btn.textContent = courseName; // 원래 텍스트로 복구
             }
