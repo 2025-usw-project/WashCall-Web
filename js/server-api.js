@@ -4,7 +4,7 @@
 
 // 서버 URL 목록 (폴백 순서대로)
 const API_BASE_URLS = [
-    'http://server.washcall.space',           // 주 서버
+    'https://server.washcall.space',          // 주 서버 (HTTPS)
     'http://127.0.0.1:8000'                   // 로컬 개발 서버
 ];
 
