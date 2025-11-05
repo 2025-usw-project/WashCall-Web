@@ -1,6 +1,6 @@
 // js/main.js
-// ❗️ ('일회성 알림' + '코스 타이머' + '버튼 비활성화' + '5초 재연결' + '개별 토글 팝업'
-// ❗️ + 'API 호출 시 상태 변경 절대 안 함' 최종본)
+// ❗️ ('일회성 알림' + '5초 재연결' + '개별 토글 팝업'
+// ❗️ + 'WASHING일 때만 버튼 보이기' + '클릭 시 모든 버튼 비활성화' 최종본)
 
 let connectionStatusElement;
 
@@ -111,7 +111,7 @@ async function turnOffToggle(machineId) {
 }
 
 
-// [수정 없음] updateMachineCard (타이머 로직 임시 제거됨)
+// [수정 없음] updateMachineCard (WASHING일 때 '보이고', OFF일 때 '숨김')
 function updateMachineCard(machineId, newStatus) {
     const card = document.getElementById(`machine-${machineId}`);
     if (!card) return; 
@@ -135,18 +135,23 @@ function updateMachineCard(machineId, newStatus) {
         }
     }
 
+    const courseButtonsContainer = card.querySelector('.course-buttons');
     const courseButtons = card.querySelectorAll('.course-btn');
-    const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
+    const shouldBeVisible = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
-    courseButtons.forEach(btn => {
-        btn.disabled = shouldBeDisabled;
-        if (!shouldBeDisabled) {
+    if (shouldBeVisible) {
+        courseButtonsContainer.style.display = 'flex';
+    } else {
+        courseButtonsContainer.style.display = 'none';
+        // [신규] FINISHED/OFF가 되면 버튼을 다시 활성화 (리셋)
+        courseButtons.forEach(btn => {
+            btn.disabled = false;
             btn.textContent = btn.dataset.courseName; 
-        }
-    });
+        });
+    }
 }
 
-// [수정 없음] renderMachines (타이머 로직 임시 제거됨)
+// [수정 없음] renderMachines (WASHING일 때 '보이고', OFF일 때 '숨김')
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
     if (!container) return;
@@ -165,8 +170,9 @@ function renderMachines(machines) {
             displayTimerText = '세탁 완료!';
         }
 
-        const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING');
-        const disabledAttribute = isDisabled ? 'disabled' : '';
+        const isWashing = (machine.status === 'WASHING' || machine.status === 'SPINNING');
+        const buttonDisplayStyle = isWashing ? 'display: flex;' : 'display: none;';
+        const disabledAttribute = ''; // (초기엔 항상 활성화. 단, /load API가 '코스 선택 여부'를 준다면 수정 필요)
 
         const machineDisplayName = machine.machine_name || `세탁기 ${machine.machine_id}`;
         const isCurrentlyUsing = (machine.isusing === 1 || machine.isusing === true);
@@ -187,7 +193,7 @@ function renderMachines(machines) {
                 </label>
                 <label class="notify-me-label">이 세탁기 알림 받기</label>
             </div>
-            <div class="course-buttons">
+            <div class="course-buttons" style="${buttonDisplayStyle}">
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="표준" ${disabledAttribute}>표준</button>
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="쾌속" ${disabledAttribute}>쾌속</button>
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="울/섬세" ${disabledAttribute}>울/섬세</button>
@@ -201,7 +207,7 @@ function renderMachines(machines) {
 }
 
 /**
- * ❗️ [핵심 수정] 코스 버튼 로직 (API 호출만 하고 UI 상태 변경 안 함)
+ * ❗️ [핵심 수정] 코스 버튼 로직 ('클릭 시 모든 버튼 비활성화')
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -213,7 +219,7 @@ function addCourseButtonLogic() {
             if (!card) return;
             const allButtonsOnCard = card.querySelectorAll('.course-btn');
 
-            // 1. 모든 버튼 비활성화, 클릭한 버튼 텍스트 변경
+            // 1. ❗️ [신규] '모든 버튼' 비활성화 (사용자 요청)
             allButtonsOnCard.forEach(btn => {
                 btn.disabled = true;
                 if (btn === clickedBtn) {
@@ -225,21 +231,18 @@ function addCourseButtonLogic() {
                 // 2. 서버에 /start_course API 호출 (알려주기)
                 await api.startCourse(machineId, courseName);
                 
-                // 3. ❗️ [수정] UI 업데이트(updateMachineCard) 코드 '제거'
-                
+                // 3. (UI 업데이트 없음)
                 console.log(`API: 코스 시작 요청 성공 (서버에 알림)`);
                 
-                // 4. [신규] 성공 시, UI는 'OFF' 상태이므로 버튼을 다시 활성화
-                allButtonsOnCard.forEach(btn => {
-                    btn.disabled = false;
-                    btn.textContent = btn.dataset.courseName; 
-                });
+                // 4. (API 성공 시, 버튼은 비활성화 상태 '유지')
+                //    (텍스트만 '요청 중...' -> '쾌속(V)' 등으로 변경)
+                clickedBtn.textContent = `✅ ${courseName}`;
             
             } catch (error) {
                 console.error("API: 코스 시작 요청 실패:", error);
                 alert(`코스 시작 실패: ${error.message}`);
                 
-                // 5. (롤백) 실패 시, 모든 버튼을 다시 활성화
+                // 5. (롤백) '실패' 시에만 모든 버튼을 다시 활성화
                 allButtonsOnCard.forEach(btn => {
                     btn.disabled = false;
                     btn.textContent = btn.dataset.courseName; 
