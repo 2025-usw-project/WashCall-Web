@@ -1,16 +1,12 @@
 // js/main.js
 // ❗️ ('일회성 알림' + '5초 재연결' + '개별 토글 팝업'
-// ❗️ + 'WASHING일 때만 버튼 보이기' + '클릭 시 모든 버튼 비활성화' 최종본)
+// ❗️ + 'WASHING/클릭 시 비활성화' + '타이머 동기화 (Load + WebSocket)' 최종본)
 
 let connectionStatusElement;
 
 document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/') {
         main();
-        
-        // ✅ FCM 알림 클릭 시 스크롤 기능
-        setupServiceWorkerMessageListener();
-        handleInitialHashScroll();
     }
 });
 
@@ -22,7 +18,7 @@ async function main() {
     try {
         updateConnectionStatus('connecting'); 
         const machines = await api.getInitialMachines();
-        renderMachines(machines);
+        renderMachines(machines); // ❗️ 수정된 함수가 연결됨
         tryConnect(); // 웹소켓 연결 시작
     } catch (error) {
         console.error("초기 세탁기 목록 로드 실패:", error);
@@ -37,7 +33,7 @@ function tryConnect() {
             updateConnectionStatus('success');
         },
         (event) => {
-            handleSocketMessage(event);
+            handleSocketMessage(event); // ❗️ 수정된 함수가 연결됨
         },
         () => {
             updateConnectionStatus('error');
@@ -75,20 +71,25 @@ function updateConnectionStatus(status) {
     }
 }
 
-// [수정 없음] WebSocket 메시지 처리 (타이머 로직 임시 제거됨)
+/**
+ * ❗️ [핵심 수정] WebSocket 메시지 처리 (웹소켓 타이머 동기화)
+ */
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
         const machineId = message.machine_id;
         const newStatus = message.status;
+        
+        // ❗️ [신규] 웹소켓에서 타이머 값을 읽음 (없으면 null)
+        const newTimer = message.timer || null; 
 
         if (message.type === 'room_status') {
-            updateMachineCard(machineId, newStatus);
+            updateMachineCard(machineId, newStatus, newTimer); // ❗️ newTimer 전달
         } 
         else if (message.type === 'notify') {
             const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus)}`;
             alert(msg); 
-            updateMachineCard(machineId, newStatus);
+            updateMachineCard(machineId, newStatus, newTimer); // ❗️ newTimer 전달
         }
 
         if (newStatus === 'FINISHED') {
@@ -115,8 +116,10 @@ async function turnOffToggle(machineId) {
 }
 
 
-// [수정 없음] updateMachineCard (WASHING일 때 '보이고', OFF일 때 '숨김')
-function updateMachineCard(machineId, newStatus) {
+/**
+ * ❗️ [핵심 수정] updateMachineCard (타이머 로직 복구)
+ */
+function updateMachineCard(machineId, newStatus, newTimer = null) {
     const card = document.getElementById(`machine-${machineId}`);
     if (!card) return; 
 
@@ -128,34 +131,39 @@ function updateMachineCard(machineId, newStatus) {
         statusStrong.textContent = translateStatus(newStatus);
     }
 
+    // ❗️ [수정] 타이머 로직 (웹소켓 동기화)
     const timerSpan = card.querySelector('.timer-display span');
     if (timerSpan) {
-        if (newStatus === 'WASHING' || newStatus === 'SPINNING') {
+        if (newTimer !== null && newTimer > 0 && (newStatus === 'WASHING' || newStatus === 'SPINNING')) {
+            // (A) 서버가 타이머 값을 줬을 때 (POST /load, /start_course, *WebSocket*)
+            timerSpan.textContent = `${newTimer}분 남음`;
+        } else if (newStatus === 'WASHING' || newStatus === 'SPINNING') {
+            // (B) 타이머 값이 없는데 작동 중일 때 (기본값)
             timerSpan.textContent = '작동 중...';
         } else if (newStatus === 'FINISHED') {
+            // (C) 완료
             timerSpan.textContent = '세탁 완료!';
         } else {
+            // (D) 대기 중
             timerSpan.textContent = '대기 중';
         }
     }
 
-    const courseButtonsContainer = card.querySelector('.course-buttons');
+    // [수정 없음] 버튼 비활성화 로직 (Case 1)
     const courseButtons = card.querySelectorAll('.course-btn');
-    const shouldBeVisible = (newStatus === 'WASHING' || newStatus === 'SPINNING');
+    const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
-    if (shouldBeVisible) {
-        courseButtonsContainer.style.display = 'flex';
-    } else {
-        courseButtonsContainer.style.display = 'none';
-        // [신규] FINISHED/OFF가 되면 버튼을 다시 활성화 (리셋)
-        courseButtons.forEach(btn => {
-            btn.disabled = false;
+    courseButtons.forEach(btn => {
+        btn.disabled = shouldBeDisabled;
+        if (!shouldBeDisabled) {
             btn.textContent = btn.dataset.courseName; 
-        });
-    }
+        }
+    });
 }
 
-// [수정 없음] renderMachines (WASHING일 때 '보이고', OFF일 때 '숨김')
+/**
+ * ❗️ [핵심 수정] renderMachines (타이머 로직 복구)
+ */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
     if (!container) return;
@@ -165,19 +173,26 @@ function renderMachines(machines) {
         const machineDiv = document.createElement('div');
         machineDiv.className = 'machine-card';
         machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
-        machineDiv.id = `machine-${machine.machine_id}`;
-        machineDiv.dataset.machineId = machine.machine_id; // ✅ FCM 알림 클릭 시 스크롤용 
+        machineDiv.id = `machine-${machine.machine_id}`; 
         
+        // ❗️ [수정] /load에서 받은 timer 값을 확인
         let displayTimerText = '대기 중';
+        const machineTimer = machine.timer; 
+
         if ((machine.status === 'WASHING' || machine.status === 'SPINNING')) {
-            displayTimerText = '작동 중...'; 
+            if (machineTimer !== null && machineTimer !== undefined && machineTimer > 0) {
+                displayTimerText = `${machineTimer}분 남음`;
+            } else {
+                displayTimerText = '작동 중...'; 
+            }
         } else if (machine.status === 'FINISHED') {
             displayTimerText = '세탁 완료!';
         }
+        // ❗️ [수정] 끝
 
-        const isWashing = (machine.status === 'WASHING' || machine.status === 'SPINNING');
-        const buttonDisplayStyle = isWashing ? 'display: flex;' : 'display: none;';
-        const disabledAttribute = ''; // (초기엔 항상 활성화. 단, /load API가 '코스 선택 여부'를 준다면 수정 필요)
+        // [수정 없음] 버튼 비활성화 로직 (Case 1)
+        const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING');
+        const disabledAttribute = isDisabled ? 'disabled' : '';
 
         const machineDisplayName = machine.machine_name || `세탁기 ${machine.machine_id}`;
         const isCurrentlyUsing = (machine.isusing === 1 || machine.isusing === true);
@@ -198,8 +213,7 @@ function renderMachines(machines) {
                 </label>
                 <label class="notify-me-label">이 세탁기 알림 받기</label>
             </div>
-            <div class="course-buttons" style="${buttonDisplayStyle}">
-                <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="표준" ${disabledAttribute}>표준</button>
+            <div class="course-buttons" style="${isDisabled ? 'display: none;' : 'display: flex;'}"> <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="표준" ${disabledAttribute}>표준</button>
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="쾌속" ${disabledAttribute}>쾌속</button>
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="울/섬세" ${disabledAttribute}>울/섬세</button>
             </div>
@@ -212,7 +226,7 @@ function renderMachines(machines) {
 }
 
 /**
- * ❗️ [핵심 수정] 코스 버튼 로직 ('클릭 시 모든 버튼 비활성화')
+ * ❗️ [핵심 수정] 코스 버튼 로직 (Case 2: 클릭 시 즉시 비활성화 + 숨김)
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -223,8 +237,9 @@ function addCourseButtonLogic() {
             const card = document.getElementById(`machine-${machineId}`);
             if (!card) return;
             const allButtonsOnCard = card.querySelectorAll('.course-btn');
+            const buttonContainer = card.querySelector('.course-buttons');
 
-            // 1. ❗️ [신규] '모든 버튼' 비활성화 (사용자 요청)
+            // 1. ❗️ [신규] 모든 버튼 비활성화 (Case 2)
             allButtonsOnCard.forEach(btn => {
                 btn.disabled = true;
                 if (btn === clickedBtn) {
@@ -236,12 +251,11 @@ function addCourseButtonLogic() {
                 // 2. 서버에 /start_course API 호출 (알려주기)
                 await api.startCourse(machineId, courseName);
                 
-                // 3. (UI 업데이트 없음)
-                console.log(`API: 코스 시작 요청 성공 (서버에 알림)`);
+                // 3. ❗️ [신규] API 호출 성공 시, 버튼 그룹을 '숨김'
+                //    (어차피 곧 웹소켓이 'WASHING'을 방송하여 숨길 것이지만, 선제적 조치)
+                if (buttonContainer) buttonContainer.style.display = 'none';
                 
-                // 4. (API 성공 시, 버튼은 비활성화 상태 '유지')
-                //    (텍스트만 '요청 중...' -> '쾌속(V)' 등으로 변경)
-                clickedBtn.textContent = `✅ ${courseName}`;
+                console.log(`API: 코스 시작 요청 성공 (서버에 알림)`);
             
             } catch (error) {
                 console.error("API: 코스 시작 요청 실패:", error);
@@ -310,76 +324,4 @@ function translateStatus(status) {
         case 'OFF': return '대기 중';
         default: return status;
     }
-}
-
-// ===== 🔔 FCM 알림 클릭 시 스크롤 기능 =====
-
-/**
- * Service Worker로부터 메시지를 받아서 특정 세탁기로 스크롤
- */
-function setupServiceWorkerMessageListener() {
-    if (!('serviceWorker' in navigator)) {
-        console.warn('[main.js] Service Worker를 지원하지 않는 브라우저입니다.');
-        return;
-    }
-    
-    navigator.serviceWorker.addEventListener('message', event => {
-        console.log('[main.js] Service Worker로부터 메시지 수신:', event.data);
-        
-        if (event.data && event.data.type === 'SCROLL_TO_MACHINE') {
-            const machineId = event.data.machine_id;
-            if (machineId) {
-                scrollToMachine(machineId);
-            }
-        }
-    });
-    
-    console.log('[main.js] Service Worker 메시지 리스너 등록 완료');
-}
-
-/**
- * 페이지 로드 시 URL 해시가 있으면 해당 세탁기로 스크롤
- * 예: index.html#machine-123
- */
-function handleInitialHashScroll() {
-    const hash = window.location.hash; // 예: "#machine-123"
-    
-    if (hash && hash.startsWith('#machine-')) {
-        const machineId = hash.replace('#machine-', '');
-        
-        // DOM이 완전히 로드될 때까지 대기 후 스크롤
-        setTimeout(() => {
-            scrollToMachine(machineId);
-        }, 500); // 500ms 대기 (세탁기 목록이 렌더링될 시간)
-        
-        console.log('[main.js] URL 해시 감지, 스크롤 예약:', machineId);
-    }
-}
-
-/**
- * 특정 세탁기 카드로 부드럽게 스크롤하고 하이라이트 효과
- */
-function scrollToMachine(machineId) {
-    const machineCard = document.querySelector(`[data-machine-id="${machineId}"]`);
-    
-    if (!machineCard) {
-        console.warn(`[main.js] 세탁기 카드를 찾을 수 없습니다: machine_id=${machineId}`);
-        return;
-    }
-    
-    // 1. 부드럽게 스크롤
-    machineCard.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center'
-    });
-    
-    // 2. 하이라이트 효과 (배경색 깜빡임)
-    machineCard.style.transition = 'background-color 0.3s ease';
-    machineCard.style.backgroundColor = '#fff3cd'; // 연한 노란색
-    
-    setTimeout(() => {
-        machineCard.style.backgroundColor = ''; // 원래대로
-    }, 2000);
-    
-    console.log(`[main.js] 세탁기로 스크롤 완료: machine_id=${machineId}`);
 }
