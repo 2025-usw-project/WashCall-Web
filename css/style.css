@@ -588,3 +588,23 @@ input:checked + .slider:before {
     font-size: 1.5rem;
     line-height: 1; /* 아이콘이 텍스트 위로 뜨지 않도록 */
 }
+
+/* --- 17. 세탁실 알림 버튼 상태별 색상 (요청 2) --- */
+
+/* ❗️ '알림 끄기' (구독 중, 켜진 상태)일 때 스타일 */
+#room-subscribe-button.subscribed {
+    background-color: #f0ad4e; /* 경고/활성 (주황색) */
+    border-color: #eea236;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#room-subscribe-button.subscribed:hover {
+    background-color: #ec971f; /* 호버 시 더 진하게 */
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ❗️ '알림 받기' (꺼진 상태)일 때 (기존 녹색 스타일) */
+#room-subscribe-button {
+    /* (기존 스타일: #5cb85c 녹색) */
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}

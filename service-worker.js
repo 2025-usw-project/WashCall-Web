@@ -26,7 +26,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('[service-worker.js] 백그라운드 메시지 수신:', payload);
     
-    // ✅ Data-only 메시지 지원 (notification과 data 모두 체크)
+    //메시지 지원 (notification과 data 모두 체크)
     const notificationTitle = payload.notification?.title || payload.data?.title || '알림';
     const notificationBody = payload.notification?.body || payload.data?.body || '새 메시지가 도착했습니다.';
     const machineId = payload.data?.machine_id;

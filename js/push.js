@@ -56,7 +56,7 @@ function setupMasterPushButton() {
 }
 
 /**
- * ❗️ [핵심 수정] '세탁실 알림' 켜기/끄기 토글
+ * [핵심] '세탁실 알림' 켜기/끄기 토글
  */
 async function onMasterSubscribeToggle() {
     masterPushButton.disabled = true;
@@ -157,15 +157,19 @@ async function subscribeAllMachinesAPI(toggles, shouldBeOn) {
 }
 
 /**
- * ❗️ [수정 없음] 버튼 텍스트 업데이트 헬퍼
+ * ❗️ [핵심 수정] 버튼 텍스트 및 '색상' 업데이트 헬퍼 (요청 2)
  */
 function updateMasterButtonText(isOn) {
     if (!masterPushButton) return; // (안전장치)
     
     if (isOn) {
-        masterPushButton.textContent = "🔔 세탁실 알림 끄기";
+        // 1. 켜진 상태 (알림 끄기)
+        masterPushButton.textContent = "🔔 세탁실 알림 끄기 (허용 중)";
+        masterPushButton.classList.add('subscribed'); // ❗️ CSS 클래스 추가
     } else {
+        // 2. 꺼진 상태 (알림 받기)
         masterPushButton.textContent = "🔔 세탁실 알림 받기";
+        masterPushButton.classList.remove('subscribed'); // ❗️ CSS 클래스 제거
     }
 }
 

@@ -20,10 +20,10 @@ async function main() {
         // ❗️ [수정] Promise.all로 세탁기 목록과 팁을 '병렬'로 로드
         const [machines] = await Promise.all([
             api.getInitialMachines(),
-            loadCongestionTip() // ❗️ [신규] 팁 로드 함수 호출
+            loadCongestionTip() // 팁 로드 함수 호출
         ]);
 
-        renderMachines(machines); // ❗️ (machines 변수만 사용)
+        renderMachines(machines); //(machines 변수만 사용)
         tryConnect(); // 웹소켓 연결 시작
     } catch (error) {
         console.error("초기 세탁기 목록 또는 팁 로드 실패:", error);
@@ -101,29 +101,61 @@ function updateConnectionStatus(status) {
 }
 
 /**
- * ❗️ [핵심 수정] WebSocket 메시지 처리 (타이머 로직 '복원')
+ * ❗️ [핵심 수정] WebSocket 메시지 처리 (요청 1 - 버그 수정)
+ * ('FINISHED' 수신 시 '세탁실 알림' 버튼 상태도 초기화)
  */
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
+
+        // 1. 1분마다 타이머 동기화 (배열 순회)
+        if (message.type === 'timer_sync') {
+            if (message.machines && Array.isArray(message.machines)) {
+                for (const machine of message.machines) {
+                    updateMachineCard(machine.machine_id, machine.status, machine.timer);
+                }
+            } else {
+                console.warn("timer_sync 메시지를 받았으나 machines 배열이 없습니다.", message);
+            }
+            return; // timer_sync 메시지는 여기서 처리가 끝남
+        }
+
+        // 2. 개별 상태 변경 (아두이노 또는 사용자)
         const machineId = message.machine_id;
         const newStatus = message.status;
-        
-        // ❗️ [복원] 타이머 값을 파싱합니다. (null일 수도 있습니다)
         const newTimer = (message.timer !== undefined) ? message.timer : null; 
 
         if (message.type === 'room_status') {
-            updateMachineCard(machineId, newStatus, newTimer); // ❗️ newTimer 인자 추가
+            updateMachineCard(machineId, newStatus, newTimer); 
         } 
         else if (message.type === 'notify') {
             const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus)}`;
             alert(msg); 
-            updateMachineCard(machineId, newStatus, newTimer); // ❗️ newTimer 인자 추가
+            updateMachineCard(machineId, newStatus, newTimer); 
         }
 
-        // ❗️ [수정 없음] 'FINISHED'일 때 '개별 토글'을 자동으로 끈다
+        // 3. FINISHED 상태일 때 후처리
         if (newStatus === 'FINISHED') {
-            await turnOffToggle(machineId, false); // (서버에 알릴 필요 없음)
+            
+            // 3-A. [기존] 개별 토글(UI) 끄기 (일회성 알림)
+            await turnOffToggle(machineId, false); 
+
+            // ❗️ 3-B. [신규] "세탁실 알림" 버튼 상태 초기화 (요청 1 - 버그 수정)
+            // (서버가 DB 구독을 자동으로 해제하므로, 클라이언트 상태도 강제 동기화)
+            const STORAGE_KEY = 'washcallRoomSubState';
+            if (localStorage.getItem(STORAGE_KEY) === 'true') {
+                console.log("알림 수신: '세탁실 알림' 상태를 초기화합니다.");
+                
+                // 1. localStorage 상태 초기화
+                localStorage.setItem(STORAGE_KEY, 'false'); 
+                
+                // 2. 버튼 UI 초기화 (push.js의 updateMasterButtonText 로직 참조)
+                const masterBtn = document.getElementById('room-subscribe-button');
+                if (masterBtn) {
+                    masterBtn.textContent = "🔔 세탁실 알림 받기";
+                    masterBtn.classList.remove('subscribed'); // ❗️ 색상(클래스) 초기화
+                }
+            }
         }
 
     } catch (error) {
@@ -152,7 +184,7 @@ async function turnOffToggle(machineId, notifyServer) {
 
 
 /**
- * ❗️ [핵심 수정] updateMachineCard (타이머 로직 '복원')
+ * [핵심] updateMachineCard 
  */
 function updateMachineCard(machineId, newStatus, newTimer) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -166,13 +198,13 @@ function updateMachineCard(machineId, newStatus, newTimer) {
         statusStrong.textContent = translateStatus(newStatus);
     }
 
-    // ❗️ [수정] 타이머 헬퍼 함수를 사용하여 텍스트 업데이트
+    // 타이머 헬퍼 함수를 사용하여 텍스트 업데이트
     const timerSpan = card.querySelector('.timer-display span');
     if (timerSpan) {
         timerSpan.textContent = formatTimer(newTimer, newStatus);
     }
 
-    // [수정 없음] 버튼 비활성화 로직 (Case 1: WASHING이면 비활성화)
+    // 버튼 비활성화 로직 (Case 1: WASHING이면 비활성화)
     const courseButtons = card.querySelectorAll('.course-btn');
     const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
@@ -238,7 +270,7 @@ function renderMachines(machines) {
     addNotifyMeLogic(); 
 }
 
-// [수정 없음] 코스 버튼 로직 (Case 2: 클릭 시 즉시 비활성화)
+// 코스 버튼 로직 (Case 2: 클릭 시 즉시 비활성화)
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
         clickedBtn.onclick = async (event) => { 
@@ -278,8 +310,7 @@ function addCourseButtonLogic() {
 }
 
 /**
- * ❗️ [수정] 개별 토글 로직 (기능은 동일, push.js와의 연동 로직 추가)
- * (이 함수는 '이전' 답변에서 이미 수정되었습니다. 타이머와는 직접 관련 없습니다.)
+ *개별 토글 로직 (기능은 동일, push.js와의 연동 로직 추가)
  */
 function addNotifyMeLogic() {
     document.querySelectorAll('.notify-me-toggle').forEach(toggle => {
@@ -290,7 +321,7 @@ function addNotifyMeLogic() {
             if (shouldSubscribe) {
                 // --- 1. 토글을 켰을 때 (구독 신청) ---
                 try {
-                    // ❗️ [신규] 중복 방지: '세탁실 알림'이 켜져 있으면 끈다.
+                    // '세탁실 알림'이 켜져 있으면 끄기
                     const roomSubState = localStorage.getItem('washcallRoomSubState');
                     if (roomSubState === 'true') {
                         console.log("중복 방지: '세탁실 알림'을 끕니다.");

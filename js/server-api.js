@@ -1,12 +1,19 @@
 // js/server-api.js
-// ❗️ (api.toggleNotifyMe 함수가 '복원'된 최종 버전)
-// ❗️ (로컬/운영 서버 자동 감지)
+// ❗️ (로컬/운영 서버 자동 감지 기능이 추가된 최종본)
 
 // ❗️ [핵심 수정] 로컬/운영 서버 주소 자동 감지
+// (브라우저 주소창의 주소가 localhost 또는 127.0.0.1인지 확인)
+const isLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-const API_BASE_URL = "https://server.washcall.space"
+// ❗️ (로컬에서 FastAPI 서버를 8000번 포트로 실행한다고 가정)
+const LOCAL_URL = "http://localhost:8000"; 
+const PRODUCTION_URL = "https://server.washcall.space";
 
-console.log(`API Base URL: ${API_BASE_URL}`);
+// ❗️ 자동 전환
+const API_BASE_URL = isLocal ? LOCAL_URL : PRODUCTION_URL;
+
+console.log(`API Base URL: ${API_BASE_URL} (isLocal: ${isLocal})`);
+
 
 // [수정 없음] getAuthToken
 function getAuthToken() {
@@ -35,12 +42,41 @@ function getFetchOptions(method, body = null, isFormData = false) {
     return options;
 }
 
+/**
+ * ❗️ [신규] 전역 Fetch 래퍼 (401 만료 처리)
+ */
+async function apiFetch(url, options) {
+    const response = await fetch(url, options);
+
+    // 1. ❗️ 401 Unauthorized (토큰 만료 또는 무효) 감지
+    if (response.status === 401) {
+        
+        // ❗️ 로그인 페이지 자체에서 발생한 401(비밀번호 틀림)은 무시
+        if (!window.location.pathname.includes('login.html')) {
+            
+            // 2. ❗️ 토큰 제거, 알림, 로그인 페이지로 강제 이동
+            localStorage.removeItem('user_token');
+            alert('세션이 만료되었거나 인증에 실패했습니다. 다시 로그인해주세요.');
+            window.location.href = 'login.html';
+        }
+
+        // 3. ❗️ (중요) 401 오류를 발생시켜 .catch() 블록이 실행되도록 함
+        const errorData = await response.json();
+        throw new Error(errorData.detail || '인증 실패 (401)');
+    }
+
+    // 4. ❗️ 401이 아닌 모든 응답(성공 또는 기타 오류)은 그대로 반환
+    return response;
+}
+
+
 const api = {
     // 1. 초기 세탁기 목록 가져오기
     getInitialMachines: async function() {
         console.log('API: "진짜" POST /load 요청 중...');
         try {
-            const response = await fetch(`${API_BASE_URL}/load`, getFetchOptions('POST'));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/load`, getFetchOptions('POST'));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '초기 세탁기 목록 로드 실패');
@@ -63,8 +99,8 @@ const api = {
     startCourse: async function(machineId, courseName) {
         console.log(`API: 세탁기 ${machineId} 코스 '${courseName}' 시작 요청 중...`);
         try {
-            // ❗️ (주의: 이 API는 현재 백엔드에 구현되어 있지 않음)
-            const response = await fetch(`${API_BASE_URL}/start_course`, getFetchOptions('POST', {
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/start_course`, getFetchOptions('POST', {
                 machine_id: machineId,
                 course_name: courseName
             }));
@@ -83,7 +119,8 @@ const api = {
     register: async function(username, studentId, password) { 
         console.log('API: 사용자 회원가입 요청 중...');
         try {
-            const response = await fetch(`${API_BASE_URL}/register`, getFetchOptions('POST', {
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/register`, getFetchOptions('POST', {
                 user_snum: parseInt(studentId, 10),
                 user_username: username,
                 user_password: password
@@ -105,10 +142,11 @@ const api = {
         const payload = {
             user_snum: parseInt(studentId, 10),
             user_password: password,
-            fcm_token: "TEMP_TOKEN_ON_LOGIN" // (서버가 fcm_token을 Optional로 수정하기 전까지 임시방편)
+            fcm_token: "TEMP_TOKEN_ON_LOGIN" 
         };
         try {
-            const response = await fetch(`${API_BASE_URL}/login`, getFetchOptions('POST', payload));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/login`, getFetchOptions('POST', payload));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '로그인 실패');
@@ -156,7 +194,8 @@ const api = {
     getCongestionData: async function() {
         console.log('API: 혼잡도 데이터 요청 중...');
         try {
-            const response = await fetch(`${API_BASE_URL}/statistics/congestion`, getFetchOptions('GET'));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/statistics/congestion`, getFetchOptions('GET'));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '혼잡도 데이터 로드 실패');
@@ -171,7 +210,6 @@ const api = {
     // 7. 설문조사 제출
     submitSurvey: async function(surveyData) {
         console.log('API: 설문조사 제출 요청 중...', surveyData);
-        // ❗️ (서버 팀이 스키마를 수정하기 전까지는, 새 항목을 보낼 수 없음)
         const payload = {
             satisfaction: parseInt(surveyData.satisfaction, 10),
             suggestion: surveyData.suggestion || ""
@@ -180,19 +218,18 @@ const api = {
             throw new Error('만족도 점수(1-5)가 올바르지 않습니다.');
         }
         try {
-            const response = await fetch(`${API_BASE_URL}/survey`, getFetchOptions('POST', payload));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/survey`, getFetchOptions('POST', payload));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '설문조사 제출 실패');
             }
             return await response.json();
         } catch (error) {
-            console.error('API: 설문조사 제출 실패:', error);
+            console.error('API: 설문조사 제출 실패:', error); 
             throw error; 
         }
     },
-
-    // (게시판 관련 함수들 생략 - 주석 처리됨)
 
     // 14. FCM 토큰 등록
     registerPushToken: async function(fcmToken) {
@@ -201,7 +238,8 @@ const api = {
             fcm_token: fcmToken
         };
         try {
-            const response = await fetch(`${API_BASE_URL}/set_fcm_token`, getFetchOptions('POST', payload));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/set_fcm_token`, getFetchOptions('POST', payload));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || 'FCM 토큰 등록 실패');
@@ -215,10 +253,7 @@ const api = {
         }
     },
 
-    /**
-     * ❗️ [핵심] 15. '개별 토글' 함수 (복원)
-     * (main.js가 호출)
-     */
+    // 15. '개별 토글' 함수
     toggleNotifyMe: async function(machineId, subscribe) {
         const payload = {
             machine_id: machineId,
@@ -226,7 +261,8 @@ const api = {
         };
         console.log('API: 세탁기 알림 구독 토글 요청...', payload);
         try {
-            const response = await fetch(`${API_BASE_URL}/notify_me`, getFetchOptions('POST', payload));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/notify_me`, getFetchOptions('POST', payload));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '알림 설정 실패');
@@ -238,44 +274,31 @@ const api = {
         }
     },
 
-    /**
-     * ❗️ [신규] 16. 혼잡도 예측 팁 (아이디어 2)
-     * (GET /tip)
-     */
+    // 16. 혼잡도 예측 팁 (GET /tip)
     getCongestionTip: async function() {
         console.log('API: 혼잡도 예측 팁 (GET /tip) 요청 중...');
         try {
-            // ❗️ GET 요청 (GET /tip)
-            const response = await fetch(`${API_BASE_URL}/tip`, getFetchOptions('GET')); 
-            
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/tip`, getFetchOptions('GET')); 
             if (!response.ok) {
-                const errorData = await response.json(); // (오류는 JSON으로 가정)
+                const errorData = await response.json(); 
                 throw new Error(errorData.detail || '혼잡도 팁 로드 실패');
             }
-            
-            // ❗️ 서버가 {"tip": "문자열"} 또는 {"message": "문자열"}을 준다고 가정
             const data = await response.json();
-            
-            // ❗️ 서버가 raw string을 보냈을 경우를 대비해 text()도 시도할 수 있으나,
-            // ❗️ 다른 API들과 통일성을 위해 JSON 포맷을 가정합니다.
             const tipText = data.tip || data.message;
             
             if (typeof tipText === 'string' && tipText.length > 0) {
                 return tipText;
             } else {
-                return null; // (팁이 없거나 형식이 잘못됨)
+                return null;
             }
-
         } catch (error) {
             console.error('API: 혼잡도 팁 로드 실패:', error);
-            return null; // (main.js가 이 null을 처리)
+            return null; 
         }
     },
 
-    /**
-     * ❗️ [수정] 17. '세탁실 알림 구독' (POST /reserve)
-     * (이 함수 '앞에' 새 코드를 추가)
-     */
+    // 17. '세탁실 알림 구독' (POST /reserve)
     reserveRoom: async function(roomId, isReservedInt) {
         console.log(`API: ${roomId}번 세탁실 구독 요청 (요청값: ${isReservedInt})`);
         const payload = {
@@ -283,7 +306,8 @@ const api = {
             isreserved: isReservedInt
         };
         try {
-            const response = await fetch(`${API_BASE_URL}/reserve`, getFetchOptions('POST', payload));
+            // ❗️ [수정] fetch -> apiFetch
+            const response = await apiFetch(`${API_BASE_URL}/reserve`, getFetchOptions('POST', payload));
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || '세탁실 구독 실패');
