@@ -333,16 +333,17 @@ function translateStatus(status) {
 
 /**
  * ❗️ [신규] 타이머 표시 헬퍼 함수
+ * (null일 때 "시간 계산 중..."으로 수정됨)
  */
 function formatTimer(timerValue, status) {
     // timerValue는 '분' 단위의 숫자 (e.g., 25) 또는 null
     
     if (status === 'WASHING' || status === 'SPINNING') {
         if (timerValue === null || timerValue === undefined) {
-            return '작동 중...'; // (서버가 타이머 계산을 못한 경우)
+            // ❗️ [수정] "작동 중..." 대신 "시간 계산 중..."으로 변경
+            return '시간 계산 중...'; 
         }
         
-        // ❗️ [수정] 0분일 때 "마무리 중" 표시
         if (timerValue <= 0) {
             return '마무리 중...'; 
         }
@@ -354,5 +355,5 @@ function formatTimer(timerValue, status) {
     
     } else { // 'OFF' 또는 'EXT_VIBE' 등
         return '대기 중';
-    }
+    }   
 }
