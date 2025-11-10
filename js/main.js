@@ -10,19 +10,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// [수정 없음] main 함수 (tryConnect 호출)
 async function main() {
     console.log('WashCall WebApp 시작!');
     connectionStatusElement = document.getElementById('connection-status');
     
     try {
         updateConnectionStatus('connecting'); 
-        const machines = await api.getInitialMachines();
-        renderMachines(machines); 
+        
+        // ❗️ [수정] Promise.all로 세탁기 목록과 팁을 '병렬'로 로드
+        const [machines] = await Promise.all([
+            api.getInitialMachines(),
+            loadCongestionTip() // ❗️ [신규] 팁 로드 함수 호출
+        ]);
+
+        renderMachines(machines); // ❗️ (machines 변수만 사용)
         tryConnect(); // 웹소켓 연결 시작
     } catch (error) {
-        console.error("초기 세탁기 목록 로드 실패:", error);
+        console.error("초기 세탁기 목록 또는 팁 로드 실패:", error);
         updateConnectionStatus('error'); 
+    }
+}
+
+// ❗️ [신규] 혼잡도 팁 로드 및 렌더링 헬퍼 함수
+async function loadCongestionTip() {
+    const tipContainer = document.getElementById('congestion-tip-container');
+    if (!tipContainer) return;
+
+    try {
+        // 1. API 호출 (server-api.js)
+        const tipText = await api.getCongestionTip(); 
+        
+        if (tipText) {
+            // 2. 텍스트 삽입 및 표시 (CSS의 flex로 설정)
+            tipContainer.textContent = tipText; 
+            tipContainer.style.display = 'flex'; 
+        } else {
+            // (팁이 없거나 null이면 숨김)
+            tipContainer.style.display = 'none'; 
+        }
+    } catch (error) {
+        // (오류 발생 시에도 숨김)
+        console.warn("혼잡도 팁을 불러오는 데 실패했습니다:", error);
+        tipContainer.style.display = 'none';
     }
 }
 

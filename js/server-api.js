@@ -239,8 +239,42 @@ const api = {
     },
 
     /**
+     * ❗️ [신규] 16. 혼잡도 예측 팁 (아이디어 2)
+     * (GET /tip)
+     */
+    getCongestionTip: async function() {
+        console.log('API: 혼잡도 예측 팁 (GET /tip) 요청 중...');
+        try {
+            // ❗️ GET 요청 (GET /tip)
+            const response = await fetch(`${API_BASE_URL}/tip`, getFetchOptions('GET')); 
+            
+            if (!response.ok) {
+                const errorData = await response.json(); // (오류는 JSON으로 가정)
+                throw new Error(errorData.detail || '혼잡도 팁 로드 실패');
+            }
+            
+            // ❗️ 서버가 {"tip": "문자열"} 또는 {"message": "문자열"}을 준다고 가정
+            const data = await response.json();
+            
+            // ❗️ 서버가 raw string을 보냈을 경우를 대비해 text()도 시도할 수 있으나,
+            // ❗️ 다른 API들과 통일성을 위해 JSON 포맷을 가정합니다.
+            const tipText = data.tip || data.message;
+            
+            if (typeof tipText === 'string' && tipText.length > 0) {
+                return tipText;
+            } else {
+                return null; // (팁이 없거나 형식이 잘못됨)
+            }
+
+        } catch (error) {
+            console.error('API: 혼잡도 팁 로드 실패:', error);
+            return null; // (main.js가 이 null을 처리)
+        }
+    },
+
+    /**
      * ❗️ [수정] 17. '세탁실 알림 구독' (POST /reserve)
-     * (push.js가 호출)
+     * (이 함수 '앞에' 새 코드를 추가)
      */
     reserveRoom: async function(roomId, isReservedInt) {
         console.log(`API: ${roomId}번 세탁실 구독 요청 (요청값: ${isReservedInt})`);

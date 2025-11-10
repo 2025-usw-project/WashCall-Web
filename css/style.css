@@ -564,3 +564,27 @@ input:checked + .slider:before {
     cursor: not-allowed;
     box-shadow: none;
 }
+
+/* --- 16. 혼잡도 팁 (아이디어 2) --- */
+.tip-container {
+    background-color: #e6f7ff; /* 옅은 파란색 배경 */
+    border: 1px solid #b3e0ff; /* 파란색 테두리 */
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    
+    display: flex; /* 아이콘과 텍스트 정렬 */
+    align-items: center;
+    gap: 15px; /* 아이콘과 텍스트 사이 간격 */
+    
+    font-size: 1rem;
+    color: #0056b3; /* 진한 파란색 텍스트 */
+    line-height: 1.5;
+}
+
+/* 💡 아이콘을 위한 가상 요소 (CSS) */
+.tip-container::before {
+    content: '💡'; /* 전구 아이콘 */
+    font-size: 1.5rem;
+    line-height: 1; /* 아이콘이 텍스트 위로 뜨지 않도록 */
+}
