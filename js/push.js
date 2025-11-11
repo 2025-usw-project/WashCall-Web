@@ -157,34 +157,47 @@ async function subscribeAllMachinesAPI(toggles, shouldBeOn) {
 }
 
 /**
- * ❗️ [핵심 수정] 버튼 텍스트 및 '색상' 업데이트 헬퍼 (요청 2)
+ * ❗️ [신규] 버튼 텍스트 업데이트 헬퍼
+ * (이름이 "빈자리 알림"으로 수정됨)
  */
 function updateMasterButtonText(isOn) {
     if (!masterPushButton) return; // (안전장치)
     
     if (isOn) {
-        // 1. 켜진 상태 (알림 끄기)
-        masterPushButton.textContent = "🔔 세탁실 알림 끄기 (허용 중)";
-        masterPushButton.classList.add('subscribed'); // ❗️ CSS 클래스 추가
+        masterPushButton.textContent = "🔔 빈자리 알림 끄기 (허용 중)";
+        masterPushButton.classList.add('subscribed'); 
     } else {
-        // 2. 꺼진 상태 (알림 받기)
-        masterPushButton.textContent = "🔔 세탁실 알림 받기";
-        masterPushButton.classList.remove('subscribed'); // ❗️ CSS 클래스 제거
+        masterPushButton.textContent = "🔔 빈자리 알림 받기";
+        masterPushButton.classList.remove('subscribed'); 
     }
 }
 
 /**
- * ❗️ [수정 없음] 권한 요청 및 FCM 토큰 발급 헬퍼
+ * ❗️ [핵심 수정] 권한 요청 및 FCM 토큰 발급 헬퍼
+ * (iOS 개인정보 보호 모드 "Can't find variable" 오류 수정)
  */
 async function requestPermissionAndGetToken() {
+    
+    // ❗️ [신규] 'Notification' 변수 자체가 존재하는지 확인
+    // (iOS 개인정보 보호 모드에서는 이 변수가 차단되어 오류 발생)
+    if (!('Notification' in window) || !('PushManager' in window)) {
+        console.error('알림 API(Notification)를 이 브라우저/모드에서 지원하지 않습니다.');
+        // ❗️ 사용자에게 명확한 오류 메시지 전달
+        throw new Error('알림 기능을 사용할 수 없습니다. Safari "개인정보 보호 브라우징" 모드를 끄고 다시 시도해주세요.');
+    }
+
+    // ❗️ [기존 로직] (위에서 통과해야 실행됨)
     if (Notification.permission === 'denied') {
         console.warn('알림 권한이 이미 \'차단\' 상태입니다.');
         return 'denied'; 
     }
+
     const permission = await Notification.requestPermission();
+    
     if (permission === 'granted') {
         const currentToken = await messaging.getToken();
         if (currentToken) {
+            console.log('FCM 토큰 획득:', currentToken);
             return currentToken; // 성공
         } else {
             throw new Error('FCM 토큰 발급에 실패했습니다.'); // 실패

@@ -651,3 +651,61 @@ input:checked + .slider:before {
 }
 .notify-me-during-wash-btn:hover { background-color: #4cae4c; }
 .notify-me-during-wash-btn:disabled { background-color: #6c757d; cursor: not-allowed; opacity: 0.8; }
+
+/* (css/style.css 파일 맨 아래에 추가) */
+
+/* --- 20. 기기 유형별 (세탁기/건조기) 아이콘 --- */
+.machine-card h3 {
+    display: flex; /* 아이콘과 텍스트 정렬 */
+    align-items: center;
+}
+
+/* 세탁기 아이콘 */
+.machine-type-washer h3::before {
+    content: '👕';
+    font-size: 1.5rem;
+    margin-right: 10px;
+    line-height: 1;
+}
+
+/* 건조기 아이콘 */
+.machine-type-dryer h3::before {
+    content: '🔥'; /* 또는 🌬️ */
+    font-size: 1.5rem;
+    margin-right: 10px;
+    line-height: 1;
+}
+
+/* --- 21. 건조기 상태 (DRYING) 스타일 --- */
+.status-drying {
+    /* (탈수와 유사하게 주황색 테두리) */
+    border-left-color: #ffc107; 
+}
+.status-drying .status-display strong {
+    color: #d39e00;
+}
+
+/* (선택 사항) 건조 중 애니메이션 (탈수와 공유) */
+.status-drying {
+    animation: shake 0.5s infinite;
+}
+
+/* (css/style.css 파일 맨 아래에 추가) */
+
+/* --- 22. 세탁기/건조기 가독성 향상 (배경색) --- */
+
+/* 세탁기는 기존 흰색 배경 유지 */
+.machine-type-washer {
+    background-color: #ffffff;
+}
+
+/* ❗️ 건조기 카드 (배경색 구분) */
+.machine-type-dryer {
+    background-color: #fffaf0; /* 옅은 주황색/노란색 (Floral White) */
+    border-color: #f7e8d6; /* 테두리 색상도 살짝 변경 */
+}
+
+/* (참고) 기존 상태 스타일은 그대로 유지됩니다.
+  .status-drying { border-left-color: #ffc107; }
+  .status-washing { border-left-color: #007bff; }
+*/
