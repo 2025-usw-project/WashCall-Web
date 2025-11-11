@@ -147,39 +147,36 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [핵심 수정] updateMachineCard (건조기/세탁기 UI 분리)
+ * ❗️ [핵심 수정] updateMachineCard (버그 수정)
+ * (isSubscribed 상태에 따라 B버튼의 텍스트/활성화/숨김을 제어)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
     const card = document.getElementById(`machine-${machineId}`);
     if (!card) return; 
 
-    // ❗️ [신규] 카드의 machine-type 읽기
     const machineType = card.dataset.machineType || 'washer';
 
     card.className = 'machine-card'; 
-    card.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer'); // ❗️ 타입 클래스 유지
-    card.classList.add(`status-${newStatus.toLowerCase()}`); // ❗️ 새 상태 클래스
+    card.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer'); 
+    card.classList.add(`status-${newStatus.toLowerCase()}`); 
 
     const statusStrong = card.querySelector('.status-display strong');
     if (statusStrong) {
-        statusStrong.textContent = translateStatus(newStatus);
+        statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
     const timerDiv = card.querySelector('.timer-display');
     const timerSpan = card.querySelector('.timer-display span');
 
-    // ❗️ [수정] 탈수 또는 건조 중일 때
     if (newStatus === 'SPINNING' || newStatus === 'DRYING') {
         if (timerDiv) timerDiv.style.display = 'block'; 
         if (timerSpan) {
-            timerSpan.textContent = formatTimer(newTimer, newStatus);
+            timerSpan.textContent = formatTimer(newTimer, newStatus, machineType);
         }
     } else {
-        // (세탁, 완료, 대기)
         if (timerDiv) timerDiv.style.display = 'none';
     }
 
-    // [수정] 버튼 비활성화/숨김 로직
     const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
     
     const startButton = card.querySelector('.notify-start-btn');
@@ -193,29 +190,30 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
         if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
         
         if (notifyMeButton) {
-            // (isSubscribed가 null이면 기존 상태를 유지하기 위해 체크)
+            // ❗️ [버그 수정] B 버튼을 '항상' 표시 (display = 'block')
+            notifyMeButton.style.display = 'block'; 
+
+            // ❗️ (isSubscribed가 null이면 기존 상태를 유지하기 위해 체크)
             if (isSubscribed === false) { 
-                notifyMeButton.style.display = 'block'; 
+                // 구독 안 함: "완료 알림 받기" 활성화
                 notifyMeButton.textContent = '🔔 완료 알림 받기';
                 notifyMeButton.disabled = false;
             } else if (isSubscribed === true) {
-                // (시나리오 A로 시작했거나, B를 눌렀을 때)
-                notifyMeButton.style.display = 'none'; // ❗️ 이미 구독했으면 숨김
+                // ❗️ [버그 수정] 구독 함: "알림 등록됨" 비활성화
+                notifyMeButton.textContent = '✅ 알림 등록됨';
+                notifyMeButton.disabled = true;
             }
-            // (isSubscribed가 null이면(예: room_status) 아무것도 안함)
+            // (isSubscribed가 null이면(예: room_status) 텍스트/활성화 상태 변경 안 함)
         }
         
     } else {
         // 2. 대기/완료 상태일 때 (시나리오 A 리셋)
-        
-        // ❗️ [수정] 세탁기일 때만 A버튼 보임
         if (machineType === 'washer') {
             if (startButton) startButton.style.display = 'block'; 
             if (courseButtonsDiv) {
                 courseButtonsDiv.classList.remove('show-courses'); 
                 courseButtonsDiv.style.display = ''; 
             }
-            // (버튼 리셋)
             if (courseButtons) {
                 courseButtons.forEach(btn => {
                     btn.disabled = false; 
@@ -223,7 +221,6 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
                 });
             }
         } else {
-            // ❗️ 건조기는 OFF일 때 아무 버튼도 보이지 않음
             if (startButton) startButton.style.display = 'none'; 
             if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
         }
@@ -233,7 +230,8 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
 }
 
 /**
- * ❗️ [핵심 수정] renderMachines (건조기/세탁기 UI 분리)
+ * ❗️ [핵심 수정] renderMachines (버그 수정)
+ * (작동 중일 때(isDisabled) 항상 시나리오 B 버튼을 렌더링하도록 수정)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -243,24 +241,19 @@ function renderMachines(machines) {
     machines.forEach(machine => {
         const machineDiv = document.createElement('div');
         
-        // ❗️ [신규] machine_type 읽기
-        const machineType = machine.machine_type || 'washer'; // (기본값 washer)
+        const machineType = machine.machine_type || 'washer'; 
         
         machineDiv.className = 'machine-card';
         machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
-        
-        // ❗️ [신규] CSS 아이콘/색상을 위한 클래스 및 data 속성 추가
         machineDiv.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer');
-        machineDiv.dataset.machineType = machineType; // ❗️ update를 위해 타입 저장
+        machineDiv.dataset.machineType = machineType; 
         
         machineDiv.id = `machine-${machine.machine_id}`; 
         
-        // ❗️ [신규] 탈수/건조 상태인지 확인
         const shouldShowTimer = (machine.status === 'SPINNING' || machine.status === 'DRYING');
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
-        const displayTimerText = shouldShowTimer ? formatTimer(machine.timer, machine.status) : '';
+        const displayTimerText = shouldShowTimer ? formatTimer(machine.timer, machine.status, machineType) : '';
 
-        // (공통)
         const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
         const isSubscribed = (machine.isusing === 1);
         
@@ -268,16 +261,16 @@ function renderMachines(machines) {
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
         const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
 
-        // ❗️ [수정] 시나리오 A/B 버튼 보임/숨김 로직
-        let showScenario_A = (!isDisabled && machineType === 'washer'); // ❗️ A는 세탁기+OFF일때만
-        let showScenario_B = (isDisabled && isSubscribed === false);    // ❗️ B는 작동중+미구독시
+        // ❗️ [버그 수정] A/B 버튼 보임/숨김 로직
+        const showScenario_A = (!isDisabled && machineType === 'washer'); // (A는 세탁기+OFF일때만)
+        const showScenario_B = (isDisabled); // ❗️ (B는 작동 중이면 '항상' 렌더링)
 
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
         machineDiv.innerHTML = `
             <h3>${machineDisplayName}</h3> 
             <div class="status-display">
-                상태: <strong id="status-${machine.machine_id}">${translateStatus(machine.status)}</strong>
+                상태: <strong id="status-${machine.machine_id}">${translateStatus(machine.status, machineType)}</strong>
             </div>
             
             <div class="timer-display" ${timerDivStyle}>
