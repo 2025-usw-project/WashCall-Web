@@ -296,7 +296,8 @@ function addNotifyStartLogic() {
 
 
 /**
- * ❗️ [수정] 코스 버튼 로직 (시나리오 A)
+ * ❗️ [핵심 수정] 코스 버튼 로직 (시나리오 A)
+ * (Error 2: 코스 시작 시 UI 즉시 변경 '제거')
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -330,28 +331,30 @@ function addCourseButtonLogic() {
                 await api.registerPushToken(token); 
                 await api.toggleNotifyMe(machineId, true); 
                 
-                // 4. 코스 시작
-                const response = await api.startCourse(machineId, courseName); 
+                // 4. 코스 시작 (서버에 코스 이름만 전송)
+                await api.startCourse(machineId, courseName); 
                 
-                console.log(`API: 코스 시작 및 알림 구독 성공`);
+                console.log(`API: 코스 시작 및 알림 구독 성공 (서버가 /update를 보낼 때까지 대기)`);
                 
-                // 5. UI 즉시 업데이트 (WASHING, 타이머, isSubscribed=true)
-                updateMachineCard(machineId, "WASHING", response.timer, true);
+                // 5. ❗️ [수정] UI를 즉시 변경하지 않음 (Error 2 해결)
+                // updateMachineCard(machineId, "WASHING", response.timer, true); // ❗️ 이 줄을 제거/주석
+                
+                // ❗️ 대신, 버튼 텍스트만 변경하고 비활성화 상태 유지
+                clickedBtn.textContent = '✅ 알림 등록됨';
+                // (allButtonsOnCard는 이미 disabled=true 상태임)
 
                 alert(`${courseName} 코스 알림이 등록되었습니다.`);
 
             } catch (error) {
-                // 6. 실패 시 롤백
+                // 6. 실패 시 롤백 (기존과 동일)
                 console.error("API: 코스 시작/알림 등록 실패:", error);
                 alert(`시작 실패: ${error.message}`);
                 
-                // (버튼 원상복구)
                 allButtonsOnCard.forEach(btn => {
                     btn.disabled = false;
                     btn.textContent = btn.dataset.courseName; 
                 });
                 
-                // (코스 선택창 숨기고 '알림 받고 시작' 버튼 다시 보이게)
                 const startButton = card.querySelector('.notify-start-btn');
                 if (startButton) startButton.style.display = 'block';
                 const courseButtonsDiv = card.querySelector('.course-buttons');
