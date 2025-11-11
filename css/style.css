@@ -608,3 +608,41 @@ input:checked + .slider:before {
     /* (기존 스타일: #5cb85c 녹색) */
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
+
+/* (css/style.css 파일 맨 아래에 추가) */
+
+/* --- 18. 신규 세탁 시작 버튼 (요청) --- */
+.notify-start-btn {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 1rem;
+    font-weight: 600;
+    
+    background-color: #007bff; /* 파란색 (시작) */
+    color: white;
+    
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 15px;
+}
+.notify-start-btn:hover {
+    background-color: #0056b3;
+}
+.notify-start-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* ❗️ 코스 버튼은 기본적으로 숨김 (요청) */
+.course-buttons {
+    display: none; 
+    gap: 10px;
+    margin-top: 20px;
+}
+
+/* ❗️ JS가 이 클래스를 추가하면 코스 버튼 보임 */
+.course-buttons.show-courses {
+    display: flex;
+}
