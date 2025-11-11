@@ -1,6 +1,5 @@
 // js/main.js
-// ❗️ (시나리오 A: 세탁 전 코스 선택 / 시나리오 B: 세탁 중 알림 받기)
-// ❗️ (코스 리스트 세로 정렬 적용)
+// ❗️ (Error 2, 3이 모두 수정된 최종본)
 
 let connectionStatusElement;
 
@@ -10,7 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// [수정 없음] main 함수
 async function main() {
     console.log('WashCall WebApp 시작!');
     connectionStatusElement = document.getElementById('connection-status');
@@ -24,14 +22,13 @@ async function main() {
         ]);
 
         renderMachines(machines); 
-        tryConnect(); // 웹소켓 연결 시작
+        tryConnect(); 
     } catch (error) {
         console.error("초기 세탁기 목록 또는 팁 로드 실패:", error);
         updateConnectionStatus('error'); 
     }
 }
 
-// [수정 없음] 혼잡도 팁 로드 (아이디어 2)
 async function loadCongestionTip() {
     const tipContainer = document.getElementById('congestion-tip-container');
     if (!tipContainer) return;
@@ -49,27 +46,24 @@ async function loadCongestionTip() {
     }
 }
 
-
-// [수정 없음] tryConnect (5초 재연결 로직)
 function tryConnect() {
     api.connect(
         () => {
             updateConnectionStatus('success');
         },
         (event) => {
-            handleSocketMessage(event); // ❗️ 수정된 함수가 연결됨
+            handleSocketMessage(event); 
         },
         () => {
             updateConnectionStatus('error');
             setTimeout(() => {
                 console.log("WebSocket 재연결 시도...");
                 tryConnect();
-            }, 5000); // 5초
+            }, 5000); 
         }
     );
 }
 
-// [수정 없음] 연결 상태 UI
 function updateConnectionStatus(status) {
     if (!connectionStatusElement) return;
     connectionStatusElement.className = 'status-alert';
@@ -95,9 +89,6 @@ function updateConnectionStatus(status) {
     }
 }
 
-/**
- * ❗️ [수정] WebSocket 메시지 처리 (구독 취소 로직 포함)
- */
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -106,7 +97,6 @@ async function handleSocketMessage(event) {
         if (message.type === 'timer_sync') {
             if (message.machines && Array.isArray(message.machines)) {
                 for (const machine of message.machines) {
-                    // ❗️ [수정] isusing 값도 함께 전달 (서버가 보낸다고 가정)
                     const isSubscribed = machine.isusing === 1;
                     updateMachineCard(machine.machine_id, machine.status, machine.timer, isSubscribed);
                 }
@@ -118,7 +108,6 @@ async function handleSocketMessage(event) {
         const machineId = message.machine_id;
         const newStatus = message.status;
         const newTimer = (message.timer !== undefined) ? message.timer : null; 
-        // ❗️ isusing 상태는 timer_sync로만 받는다고 가정하고, 여기서는 null 처리
         const isSubscribed = null; 
 
         if (message.type === 'room_status' || message.type === 'notify') {
@@ -132,7 +121,6 @@ async function handleSocketMessage(event) {
         // 3. FINISHED 상태일 때 후처리
         if (newStatus === 'FINISHED') {
             
-            // ❗️ [수정] 클라이언트가 직접 구독을 취소시킴 (1회성 알림)
             console.log(`알림 완료: ${machineId}번 세탁기 자동 구독을 취소합니다.`);
             try {
                 await api.toggleNotifyMe(machineId, false);
@@ -140,7 +128,6 @@ async function handleSocketMessage(event) {
                 console.warn(`자동 구독 취소 실패 (Machine ${machineId}):`, e.message);
             }
             
-            // ❗️ [기존] "세탁실 알림" 버튼 상태 초기화
             const STORAGE_KEY = 'washcallRoomSubState';
             if (localStorage.getItem(STORAGE_KEY) === 'true') {
                 localStorage.setItem(STORAGE_KEY, 'false'); 
@@ -159,8 +146,8 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [핵심 수정] updateMachineCard (시나리오 A/B 버튼 제어)
- * @param {boolean | null} isSubscribed - null이면 isSubscribed 상태 변경 안 함
+ * ❗️ [핵심 수정] updateMachineCard (Error 3: 버그 수정)
+ * (FINISHED 상태일 때 인라인 스타일을 제거하여 목록이 다시 뜨도록 수정)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -179,23 +166,19 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
         timerSpan.textContent = formatTimer(newTimer, newStatus);
     }
 
-    // [수정] 버튼 비활성화/숨김 로직
     const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
     
-    // (시나리오 A 버튼)
     const startButton = card.querySelector('.notify-start-btn');
     const courseButtonsDiv = card.querySelector('.course-buttons');
-    // (시나리오 B 버튼)
     const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
 
     if (shouldBeDisabled) {
         // 1. 작동 중일 때 (시나리오 B)
         if (startButton) startButton.style.display = 'none'; 
-        if (courseButtonsDiv) courseButtonsDiv.style.display = 'none';
+        if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; // ❗️ 인라인 스타일 적용 (숨김)
         if (notifyMeButton) {
-            notifyMeButton.style.display = 'block'; // ❗️ B 버튼 보임
+            notifyMeButton.style.display = 'block'; 
 
-            // ❗️ isSubscribed 상태가 null이 아닐 때만(timer_sync) 상태 갱신
             if (isSubscribed === true) {
                 notifyMeButton.textContent = '✅ 알림 등록됨';
                 notifyMeButton.disabled = true;
@@ -203,19 +186,22 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
                 notifyMeButton.textContent = '🔔 완료 알림 받기';
                 notifyMeButton.disabled = false;
             }
-            // (isSubscribed가 null이면 기존 상태 유지)
         }
         
     } else {
         // 2. 대기/완료 상태일 때 (시나리오 A)
         if (startButton) startButton.style.display = 'block'; // ❗️ A 버튼 보임
-        if (courseButtonsDiv) courseButtonsDiv.classList.remove('show-courses'); // ❗️ 코스 선택 리셋
+        if (courseButtonsDiv) {
+            courseButtonsDiv.classList.remove('show-courses'); 
+            // ❗️ [버그 수정] 인라인 style.display를 제거 (Error 3 해결)
+            courseButtonsDiv.style.display = ''; // ❗️ 인라인 스타일 제거
+        }
         if (notifyMeButton) notifyMeButton.style.display = 'none'; // ❗️ B 버튼 숨김
     }
 }
 
 /**
- * ❗️ [핵심 수정] renderMachines (UI 변경)
+ * ❗️ [수정] renderMachines (UI 변경)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -230,13 +216,10 @@ function renderMachines(machines) {
         
         const displayTimerText = formatTimer(machine.timer, machine.status);
         
-        // ❗️ (공통)
         const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING');
         const isSubscribed = (machine.isusing === 1);
         
-        // ❗️ (시나리오 A용)
         const hideWhenDisabled = isDisabled ? 'style="display: none;"' : '';
-        // ❗️ (시나리오 B용)
         const showWhenDisabled = isDisabled ? '' : 'style="display: none;"';
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
         const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
@@ -268,10 +251,10 @@ function renderMachines(machines) {
         container.appendChild(machineDiv);
     });
 
-    // ❗️ 이벤트 리스너 연결
+    // 이벤트 리스너 연결
     addNotifyStartLogic(); // (시나리오 A - 세탁 전)
     addCourseButtonLogic(); // (시나리오 A - 세탁 전)
-    addNotifyMeDuringWashLogic(); // ❗️ (신규 - 시나리오 B)
+    addNotifyMeDuringWashLogic(); // (시나리오 B - 세탁 중)
 }
 
 /**
@@ -286,72 +269,80 @@ function addNotifyStartLogic() {
             const courseButtonsDiv = card.querySelector('.course-buttons');
             
             if (courseButtonsDiv) {
-                // ❗️ 'show-courses' 클래스 (CSS가 flex-direction: column 적용)
+                // ❗️ 'show-courses' 클래스 (CSS가 display: flex/column 적용)
                 courseButtonsDiv.classList.add('show-courses');
             }
-            btn.style.display = 'none';
+            btn.style.display = 'none'; // ❗️ '시작' 버튼은 숨김
         });
     });
 }
 
 
 /**
- * ❗️ [핵심 수정] updateMachineCard (버그 수정)
- * (FINISHED 상태일 때 인라인 스타일을 제거하여 목록이 다시 뜨도록 수정)
+ * ❗️ [수정] 코스 버튼 로직 (Error 2: UI 즉시 변경 '제거')
  */
-function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
-    const card = document.getElementById(`machine-${machineId}`);
-    if (!card) return; 
+function addCourseButtonLogic() {
+    document.querySelectorAll('.course-btn').forEach(clickedBtn => {
+        clickedBtn.onclick = async (event) => { 
+            const machineId = parseInt(clickedBtn.dataset.machineId, 10);
+            const courseName = clickedBtn.dataset.courseName;
+            
+            const card = clickedBtn.closest('.machine-card');
+            if (!card) return;
 
-    card.className = 'machine-card'; 
-    card.classList.add(`status-${newStatus.toLowerCase()}`);
+            // 1. "취소 안되게"
+            const allButtonsOnCard = card.querySelectorAll('.course-btn');
+            allButtonsOnCard.forEach(btn => {
+                btn.disabled = true;
+                if (btn === clickedBtn) {
+                    btn.textContent = "요청 중...";
+                }
+            });
 
-    const statusStrong = card.querySelector('.status-display strong');
-    if (statusStrong) {
-        statusStrong.textContent = translateStatus(newStatus);
-    }
+            try {
+                // 2. FCM 토큰 발급 (push.js 함수 호출)
+                const tokenOrStatus = await requestPermissionAndGetToken();
+                if (tokenOrStatus === 'denied') {
+                    throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
+                } else if (tokenOrStatus === null) {
+                    throw new Error('알림 권한이 거부되었습니다.'); 
+                }
+                
+                // 3. 토큰 등록 및 알림 구독
+                const token = tokenOrStatus;
+                await api.registerPushToken(token); 
+                await api.toggleNotifyMe(machineId, true); 
+                
+                // 4. 코스 시작 (서버에 코스 이름만 전송)
+                await api.startCourse(machineId, courseName); 
+                
+                console.log(`API: 코스 시작 및 알림 구독 성공 (서버가 /update를 보낼 때까지 대기)`);
+                
+                // 5. ❗️ [수정] UI를 즉시 변경하지 않음 (Error 2 해결)
+                // updateMachineCard(machineId, "WASHING", response.timer, true); // ❗️ 제거됨
+                
+                // ❗️ 대신, 버튼 텍스트만 변경하고 비활성화 상태 유지
+                clickedBtn.textContent = '✅ 알림 등록됨';
 
-    const timerSpan = card.querySelector('.timer-display span');
-    if (timerSpan) {
-        timerSpan.textContent = formatTimer(newTimer, newStatus);
-    }
+                alert(`${courseName} 코스 알림이 등록되었습니다.`);
 
-    // [수정] 버튼 비활성화/숨김 로직
-    const shouldBeDisabled = (newStatus === 'WASHING' || newStatus === 'SPINNING');
-    
-    // (시나리오 A 버튼)
-    const startButton = card.querySelector('.notify-start-btn');
-    const courseButtonsDiv = card.querySelector('.course-buttons');
-    // (시나리오 B 버튼)
-    const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
-
-    if (shouldBeDisabled) {
-        // 1. 작동 중일 때 (시나리오 B)
-        if (startButton) startButton.style.display = 'none'; 
-        if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; // ❗️ 인라인 스타일 적용 (숨김)
-        if (notifyMeButton) {
-            notifyMeButton.style.display = 'block'; 
-
-            if (isSubscribed === true) {
-                notifyMeButton.textContent = '✅ 알림 등록됨';
-                notifyMeButton.disabled = true;
-            } else if (isSubscribed === false) {
-                notifyMeButton.textContent = '🔔 완료 알림 받기';
-                notifyMeButton.disabled = false;
+            } catch (error) {
+                // 6. 실패 시 롤백
+                console.error("API: 코스 시작/알림 등록 실패:", error);
+                alert(`시작 실패: ${error.message}`);
+                
+                allButtonsOnCard.forEach(btn => {
+                    btn.disabled = false;
+                    btn.textContent = btn.dataset.courseName; 
+                });
+                
+                const startButton = card.querySelector('.notify-start-btn');
+                if (startButton) startButton.style.display = 'block';
+                const courseButtonsDiv = card.querySelector('.course-buttons');
+                if (courseButtonsDiv) courseButtonsDiv.classList.remove('show-courses');
             }
-        }
-        
-    } else {
-        // 2. 대기/완료 상태일 때 (시나리오 A)
-        if (startButton) startButton.style.display = 'block'; 
-        if (courseButtonsDiv) {
-            courseButtonsDiv.classList.remove('show-courses'); // (리셋)
-            // ❗️ [버그 수정] 인라인 style.display를 제거해야
-            // ❗️ .show-courses 클래스가 다시 작동할 수 있음 (Error 3 해결)
-            courseButtonsDiv.style.display = ''; // ❗️ 인라인 스타일 제거
-        }
-        if (notifyMeButton) notifyMeButton.style.display = 'none'; 
-    }
+        };
+    });
 }
 
 /**
@@ -363,12 +354,11 @@ function addNotifyMeDuringWashLogic() {
             const btn = event.target;
             const machineId = parseInt(btn.dataset.machineId, 10);
 
-            // 1. "취소 안되게" (비활성화)
             btn.disabled = true;
             btn.textContent = "요청 중...";
 
             try {
-                // 2. FCM 토큰 발급
+                // 2. FCM 토큰 발급 (push.js 함수 호출)
                 const tokenOrStatus = await requestPermissionAndGetToken();
                 if (tokenOrStatus === 'denied') {
                     throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
