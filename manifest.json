@@ -1,0 +1,25 @@
+{
+  "name": "WashCall - 실시간 세탁실 알림",
+  "short_name": "WashCall",
+  "description": "대학 기숙사 세탁기 실시간 모니터링 및 푸시 알림",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#4285f4",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/images/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/images/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

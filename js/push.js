@@ -173,20 +173,49 @@ function updateMasterButtonText(isOn) {
 }
 
 /**
+ * ✅ iOS 버전 체크 (iOS 16.4+ 필요)
+ */
+function checkiOSVersion() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (!isIOS) return true; // iOS가 아니면 통과
+    
+    const match = navigator.userAgent.match(/OS (\d+)_(\d+)/);
+    if (!match) return true;
+    
+    const majorVersion = parseInt(match[1], 10);
+    const minorVersion = parseInt(match[2], 10);
+    
+    // iOS 16.4 미만
+    if (majorVersion < 16 || (majorVersion === 16 && minorVersion < 4)) {
+        const currentVersion = `iOS ${majorVersion}.${minorVersion}`;
+        console.error(`⚠️ iOS 16.4 이상이 필요합니다. 현재: ${currentVersion}`);
+        alert(`⚠️ iOS 16.4 이상이 필요합니다.\n현재 버전: ${currentVersion}\n\n푸시 알림을 사용하려면 iOS를 업데이트해주세요.`);
+        return false;
+    }
+    
+    console.log(`✅ iOS ${majorVersion}.${minorVersion} - 푸시 알림 지원`);
+    return true;
+}
+
+/**
  * ❗️ [핵심 수정] 권한 요청 및 FCM 토큰 발급 헬퍼
- * (iOS 개인정보 보호 모드 "Can't find variable" 오류 수정)
+ * ✅ iOS PWA 지원: VAPID 키 및 serviceWorkerRegistration 전달
  */
 async function requestPermissionAndGetToken() {
     
-    // ❗️ [신규] 'Notification' 변수 자체가 존재하는지 확인
+    // ✅ iOS 버전 체크 (iOS 16.4+ 필요)
+    if (!checkiOSVersion()) {
+        throw new Error('iOS 16.4 이상이 필요합니다.');
+    }
+    
+    // ❗️ 'Notification' 변수 자체가 존재하는지 확인
     // (iOS 개인정보 보호 모드에서는 이 변수가 차단되어 오류 발생)
     if (!('Notification' in window) || !('PushManager' in window)) {
         console.error('알림 API(Notification)를 이 브라우저/모드에서 지원하지 않습니다.');
-        // ❗️ 사용자에게 명확한 오류 메시지 전달
         throw new Error('알림 기능을 사용할 수 없습니다. Safari "개인정보 보호 브라우징" 모드를 끄고 다시 시도해주세요.');
     }
 
-    // ❗️ [기존 로직] (위에서 통과해야 실행됨)
+    // 알림 권한이 이미 차단된 경우
     if (Notification.permission === 'denied') {
         console.warn('알림 권한이 이미 \'차단\' 상태입니다.');
         return 'denied'; 
@@ -195,12 +224,25 @@ async function requestPermissionAndGetToken() {
     const permission = await Notification.requestPermission();
     
     if (permission === 'granted') {
-        const currentToken = await messaging.getToken();
+        // ✅ VAPID 공개키 (Firebase Console에서 가져온 값으로 교체 필요)
+        // TODO: Firebase Console → 프로젝트 설정 → Cloud Messaging → 웹 푸시 인증서에서 복사
+        const VAPID_PUBLIC_KEY = 'BCyYOy8xvlx73JHB2ZikUoNI19l7qmkTnpzQvqmlheaiXwelDy9SLa4LhRcx3wG82gwdtMlFcQH3lqr3_5pwGm8'; // ⚠️ 실제 VAPID 키로 교체 필요!
+        
+        // Service Worker 등록 확인
+        const registration = await navigator.serviceWorker.ready;
+        
+        // ✅ iOS PWA 지원: vapidKey 및 serviceWorkerRegistration 전달
+        const currentToken = await messaging.getToken({
+            vapidKey: VAPID_PUBLIC_KEY,
+            serviceWorkerRegistration: registration
+        });
+        
         if (currentToken) {
-            console.log('FCM 토큰 획득:', currentToken);
+            console.log('✅ FCM 토큰 획득 (iOS PWA 지원):', currentToken);
             return currentToken; // 성공
         } else {
-            throw new Error('FCM 토큰 발급에 실패했습니다.'); // 실패
+            console.warn('FCM 토큰을 가져올 수 없습니다.');
+            throw new Error('FCM 토큰 발급에 실패했습니다.'); 
         }
     } else {
         return null; // 거부
