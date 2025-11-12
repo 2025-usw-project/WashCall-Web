@@ -713,7 +713,47 @@ input:checked + .slider:before {
     border-color: #f7e8d6; /* 테두리 색상도 살짝 변경 */
 }
 
-/* (참고) 기존 상태 스타일은 그대로 유지됩니다.
-  .status-drying { border-left-color: #ffc107; }
-  .status-washing { border-left-color: #007bff; }
-*/
+/* css/style.css (맨 아래에 추가) */
+
+/* --- 23. 신규 타이머 UI 스타일 (남은 시간 제거) --- */
+.timer-display {
+    font-size: 0.95rem;
+    color: #333;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    padding: 10px;
+    border: 1px solid #eee;
+    margin-top: 10px; 
+}
+
+/* (기존) 상태 표시는 타이머와 분리 */
+.status-display {
+    font-size: 1rem;
+    color: #555;
+    margin-bottom: 5px; 
+}
+
+.timer-row {
+    display: flex;
+    justify-content: space-between;
+    line-height: 1.6;
+}
+
+.timer-row span:first-child {
+    font-weight: 500;
+    color: #555; /* 레이블 색상 */
+}
+
+.timer-row span:last-child {
+    font-weight: bold;
+    color: #007bff; /* 파란색 (경과 시간) */
+}
+
+/* (총 예상 시간) 스타일 */
+.timer-row.total-time {
+    font-size: 1.05rem; /* 총 시간은 조금 크게 */
+    margin-bottom: 4px; /* 경과 시간과의 여백 */
+}
+.timer-row.total-time span:last-child {
+    color: #333; /* 검은색 */
+}
