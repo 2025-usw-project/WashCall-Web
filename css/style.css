@@ -628,16 +628,21 @@ input:checked + .slider:before {
     padding: 12px 15px;
     font-size: 1rem;
     font-weight: 600;
-    background-color: #007bff; /* 파란색 (시작) */
+    
+    /* ❗️ [수정] 파란색(#007bff) -> 녹색(#5cb85c) */
+    background-color: #5cb85c; 
     color: white;
+    
     border: none;
     border-radius: 5px;
     cursor: pointer;
     transition: background-color 0.2s;
     margin-top: 15px;
 }
-.notify-start-btn:hover { background-color: #0056b3; }
-.notify-start-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+/* ❗️ [수정] 호버 색상 변경 */
+.notify-start-btn:hover { background-color: #4cae4c; }
+.notify-start-btn:disabled { background-color: #6c757d; cursor: not-allowed; opacity: 0.8; }
+
 
 /* --- 19. (시나리오 B) 세탁 '중' 알림 받기 버튼 --- */
 .notify-me-during-wash-btn {
@@ -645,8 +650,10 @@ input:checked + .slider:before {
     padding: 12px 15px;
     font-size: 1rem;
     font-weight: 600;
-    background-color: #5cb85c; /* 녹색 (구독) */
+    
+    background-color: #5cb85c; /* (녹색으로 동일) */
     color: white;
+    
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -655,30 +662,6 @@ input:checked + .slider:before {
 }
 .notify-me-during-wash-btn:hover { background-color: #4cae4c; }
 .notify-me-during-wash-btn:disabled { background-color: #6c757d; cursor: not-allowed; opacity: 0.8; }
-
-/* (css/style.css 파일 맨 아래에 추가) */
-
-/* --- 20. 기기 유형별 (세탁기/건조기) 아이콘 --- */
-.machine-card h3 {
-    display: flex; /* 아이콘과 텍스트 정렬 */
-    align-items: center;
-}
-
-/* 세탁기 아이콘 */
-.machine-type-washer h3::before {
-    content: '👕';
-    font-size: 1.5rem;
-    margin-right: 10px;
-    line-height: 1;
-}
-
-/* 건조기 아이콘 */
-.machine-type-dryer h3::before {
-    content: '🔥'; /* 또는 🌬️ */
-    font-size: 1.5rem;
-    margin-right: 10px;
-    line-height: 1;
-}
 
 /* --- 21. 건조기 상태 (DRYING) 스타일 --- */
 .status-drying {
