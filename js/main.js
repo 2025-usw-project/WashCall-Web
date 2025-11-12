@@ -218,7 +218,68 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
                 courseButtons.forEach(btn => {
                     btn.disabled = false; 
                     btn.textContent = btn.dataset.courseName; 
-                });
+                });/**
+ * ❗️ [핵심 수정] updateMachineCard (사용자 요청 반영)
+ * (WASHING 상태일 때도 A버튼(코스)을 표시. B버튼(notify-me-during-wash-btn) 제거)
+ */
+function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
+    const card = document.getElementById(`machine-${machineId}`);
+    if (!card) return; 
+
+    const machineType = card.dataset.machineType || 'washer';
+
+    card.className = 'machine-card'; 
+    card.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer'); 
+    card.classList.add(`status-${newStatus.toLowerCase()}`); 
+
+    const statusStrong = card.querySelector('.status-display strong');
+    if (statusStrong) {
+        statusStrong.textContent = translateStatus(newStatus, machineType);
+    }
+
+    const timerDiv = card.querySelector('.timer-display');
+    const timerSpan = card.querySelector('.timer-display span');
+
+    if (newStatus === 'SPINNING' || newStatus === 'DRYING') {
+        if (timerDiv) timerDiv.style.display = 'block'; 
+        if (timerSpan) {
+            timerSpan.textContent = formatTimer(newTimer, newStatus, machineType);
+        }
+    } else {
+        if (timerDiv) timerDiv.style.display = 'none';
+    }
+
+    // ❗️ [수정] A버튼 숨김 조건: 탈수/건조 중이거나, 건조기일 때
+    const hideScenario_A = (newStatus === 'SPINNING' || newStatus === 'DRYING') || (machineType === 'dryer');
+    
+    const startButton = card.querySelector('.notify-start-btn');
+    const courseButtonsDiv = card.querySelector('.course-buttons');
+    const notifyMeButton = card.querySelector('.notify-me-during-wash-btn'); // (숨김 처리용)
+    const courseButtons = card.querySelectorAll('.course-btn');
+
+    if (hideScenario_A) {
+        // 1. 탈수/건조 중일 때 (A 버튼 숨김)
+        if (startButton) startButton.style.display = 'none'; 
+        if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
+        if (notifyMeButton) notifyMeButton.style.display = 'none'; // (B 버튼도 숨김)
+        
+    } else {
+        // 2. ❗️ 대기/완료/세탁(WASHING) 상태일 때 (A 버튼 표시 및 리셋)
+        if (startButton) startButton.style.display = 'block'; 
+        if (courseButtonsDiv) {
+            courseButtonsDiv.classList.remove('show-courses'); 
+            courseButtonsDiv.style.display = ''; 
+        }
+        if (notifyMeButton) notifyMeButton.style.display = 'none'; 
+        
+        if (courseButtons) {
+            courseButtons.forEach(btn => {
+                btn.disabled = false; 
+                btn.textContent = btn.dataset.courseName; 
+            });
+        }
+    }
+}
             }
         } else {
             if (startButton) startButton.style.display = 'none'; 
@@ -230,8 +291,8 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
 }
 
 /**
- * ❗️ [핵심 수정] renderMachines (버그 수정)
- * (작동 중일 때(isDisabled) 항상 시나리오 B 버튼을 렌더링하도록 수정)
+ * ❗️ [핵심 수정] renderMachines (사용자 요청 반영)
+ * (WASHING 상태일 때도 A버튼(코스)을 표시. B버튼(notify-me-during-wash-btn) 제거)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -254,16 +315,9 @@ function renderMachines(machines) {
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
         const displayTimerText = shouldShowTimer ? formatTimer(machine.timer, machine.status, machineType) : '';
 
-        const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
-        const isSubscribed = (machine.isusing === 1);
-        
-        // (시나리오 B용)
-        const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
-        const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
-
-        // ❗️ [버그 수정] A/B 버튼 보임/숨김 로직
-        const showScenario_A = (!isDisabled && machineType === 'washer'); // (A는 세탁기+OFF일때만)
-        const showScenario_B = (isDisabled); // ❗️ (B는 작동 중이면 '항상' 렌더링)
+        // ❗️ [수정] A버튼 숨김 조건: 탈수/건조 중이거나, 건조기일 때
+        const hideScenario_A = (machine.status === 'SPINNING' || machine.status === 'DRYING') || (machineType === 'dryer');
+        const showScenario_A = !hideScenario_A;
 
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
@@ -286,17 +340,14 @@ function renderMachines(machines) {
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="쾌속">쾌속</button>
             </div>
 
-            <button class="notify-me-during-wash-btn" data-machine-id="${machine.machine_id}" ${showScenario_B ? '' : 'style="display: none;"'} ${scenarioB_DisabledAttr}>
-                ${scenarioB_Text}
-            </button>
-        `;
+            `;
         container.appendChild(machineDiv);
     });
 
     // 이벤트 리스너 연결
     addNotifyStartLogic(); 
     addCourseButtonLogic(); 
-    addNotifyMeDuringWashLogic(); 
+    // ❗️ [제거] addNotifyMeDuringWashLogic(); 
 }
 
 /**
@@ -411,50 +462,6 @@ function addCourseButtonLogic() {
         };
     });
 }
-
-/**
- * ❗️ [신규] "완료 알림 받기" 버튼 로직 (시나리오 B)
- */
-function addNotifyMeDuringWashLogic() {
-    document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
-        button.addEventListener('click', async (event) => {
-            const btn = event.target;
-            const machineId = parseInt(btn.dataset.machineId, 10);
-
-            btn.disabled = true;
-            btn.textContent = "요청 중...";
-
-            try {
-                // 2. FCM 토큰 발급 (push.js 함수 호출)
-                const tokenOrStatus = await requestPermissionAndGetToken();
-                if (tokenOrStatus === 'denied') {
-                    throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
-                } else if (tokenOrStatus === null) {
-                    throw new Error('알림 권한이 거부되었습니다.'); 
-                }
-                
-                // 3. 토큰 등록 및 알림 구독
-                const token = tokenOrStatus;
-                await api.registerPushToken(token); 
-                await api.toggleNotifyMe(machineId, true); 
-
-                // 4. (성공) UI 업데이트
-                btn.textContent = '✅ 알림 등록됨';
-                // (disabled=true 상태 유지)
-
-                alert('완료 알림이 등록되었습니다.');
-
-            } catch (error) {
-                // 5. (실패) 롤백
-                console.error("API: '세탁 중' 알림 등록 실패:", error);
-                alert(`알림 등록 실패: ${error.message}`);
-                btn.disabled = false;
-                btn.textContent = '🔔 완료 알림 받기';
-            }
-        });
-    });
-}
-
 
 // [수정] 유틸리티: 상태값 한글 번역 (DRYING 추가)
 function translateStatus(status) {
