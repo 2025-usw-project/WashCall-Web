@@ -111,8 +111,11 @@ async function handleSocketMessage(event) {
         const isSubscribed = null; 
 
         if (message.type === 'room_status' || message.type === 'notify') {
+            const card = document.getElementById(`machine-${machineId}`);
+            const machineType = card ? (card.dataset.machineType || 'washer') : 'washer';
+
             if (message.type === 'notify') {
-                const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus)}`; // ❗️ translateStatus 호출
+                const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus, machineType)}`;
                 alert(msg); 
             }
             updateMachineCard(machineId, newStatus, newTimer, isSubscribed); 
@@ -146,8 +149,7 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [핵심 수정] updateMachineCard (버그 수정)
- * (isSubscribed 상태에 따라 B버튼의 텍스트/활성화/숨김을 제어)
+ * ❗️ [핵심] updateMachineCard (버튼 사라짐 버그 수정됨)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -161,7 +163,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
 
     const statusStrong = card.querySelector('.status-display strong');
     if (statusStrong) {
-        // ❗️ [수정] translateStatus에 machineType 전달
+        // ❗️ machineType 전달하여 '건조 완료' 구분
         statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
@@ -230,8 +232,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed) {
 }
 
 /**
- * ❗️ [핵심 수정] renderMachines (버그 수정)
- * (작동 중일 때(isDisabled) 항상 시나리오 B 버튼을 렌더링하도록 수정)
+ * ❗️ [핵심] renderMachines (건조기/세탁기 UI 분리)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -252,13 +253,11 @@ function renderMachines(machines) {
         
         const shouldShowTimer = (machine.status === 'SPINNING' || machine.status === 'DRYING');
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
-        // ❗️ [수정] formatTimer에도 machineType 전달 (미래 대비)
         const displayTimerText = shouldShowTimer ? formatTimer(machine.timer, machine.status, machineType) : '';
 
         const isDisabled = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
         const isSubscribed = (machine.isusing === 1);
         
-        // (시나리오 B용)
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
         const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
 
