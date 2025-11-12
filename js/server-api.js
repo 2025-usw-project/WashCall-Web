@@ -251,6 +251,7 @@ const api = {
 
     // 16. 혼잡도 예측 팁 (GET /tip)
     getCongestionTip: async function() {
+        console.log('API: 혼잡도 예측 팁 (GET /tip) 요청 중...');
         try {
             const response = await apiFetch(`${API_BASE_URL}/tip`, getFetchOptions('GET')); 
             if (!response.ok) {
@@ -258,7 +259,9 @@ const api = {
                 throw new Error(errorData.detail || '혼잡도 팁 로드 실패');
             }
             const data = await response.json();
-            const tipText = data.tip || data.message;
+            
+            // ❗️ [핵심 수정] "tip" 또는 "message"가 아닌 "tip_message" 키를 찾음
+            const tipText = data.tip_message; 
             
             if (typeof tipText === 'string' && tipText.length > 0) {
                 return tipText;
