@@ -93,67 +93,59 @@ function updateConnectionStatus(status) {
     }
 }
 
+// js/main.js
+
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
 
-        // ❗️ [수정] WebSocket이 'elapsed_time_minutes'를 보내도록 수정되어야 함
+        // 1. 1분마다 타이머 동기화 (그대로 유지)
         if (message.type === 'timer_sync') {
             if (message.machines && Array.isArray(message.machines)) {
                 for (const machine of message.machines) {
                     const isSubscribed = machine.isusing === 1;
+                    // ❗️ (타이머 관련 값들 전달)
                     updateMachineCard(
                         machine.machine_id, 
                         machine.status, 
-                        machine.timer, // 남은 시간 (총 시간 계산용)
+                        machine.timer,
                         isSubscribed,
-                        machine.elapsed_time_minutes // ❗️ 경과 시간
+                        machine.elapsed_time_minutes 
                     );
                 }
             }
             return; 
         }
 
+        // 2. 개별 상태 변경 (room_status만 처리)
         const machineId = message.machine_id;
         const newStatus = message.status;
         const newTimer = (message.timer !== undefined) ? message.timer : null; 
         const isSubscribed = null; 
-        
-        // ❗️ [수정] 경과 시간 추출
         const newElapsedMinutes = message.elapsed_time_minutes;
 
-        if (message.type === 'room_status' || message.type === 'notify') {
+        // ❗️ [수정] 'room_status'만 남기고, 'notify' 타입 체크 삭제
+        if (message.type === 'room_status') { 
             const card = document.getElementById(`machine-${machineId}`);
             const machineType = card ? (card.dataset.machineType || 'washer') : 'washer';
 
-            if (message.type === 'notify') {
-                const msg = `세탁기 ${machineId} 상태 변경: ${translateStatus(newStatus, machineType)}`;
-                alert(msg); 
-            }
-            
-            // ❗️ [수정] 새 인자 전달
+            // ❗️ [삭제] 'notify' 타입일 때 alert() 띄우던 로직 삭제
+            // if (message.type === 'notify') { ... }
+
             updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes); 
         }
 
-        if (newStatus === 'FINISHED') {
-            // ... (이전과 동일) ...
-            console.log(`알림 완료: ${machineId}번 세탁기 자동 구독을 취소합니다.`);
-            try {
-                await api.toggleNotifyMe(machineId, false);
-            } catch (e) {
-                console.warn(`자동 구독 취소 실패 (Machine ${machineId}):`, e.message);
-            }
-            
-            const STORAGE_KEY = 'washcallRoomSubState';
-            if (localStorage.getItem(STORAGE_KEY) === 'true') {
-                localStorage.setItem(STORAGE_KEY, 'false'); 
-                const masterBtn = document.getElementById('room-subscribe-button');
-                if (masterBtn) {
-                    masterBtn.textContent = "🔔 빈자리 알림 받기"; 
-                    masterBtn.classList.remove('subscribed'); 
-                }
-            }
-        }
+        // 3. ❗️ [삭제] FINISHED 상태일 때 후처리 (자동 구독 해제) 로직 전체 삭제
+        //
+        // if (newStatus === 'FINISHED') {
+        //     console.log(`알림 완료: ${machineId}번 자동 구독을 취소합니다.`);
+        //     try {
+        //         await api.toggleNotifyMe(machineId, false);
+        //     } catch (e) { ... }
+        //     
+        //     ( ... '빈자리 알림' 끄는 로직 ... )
+        // }
+        // ❗️ 위 블록 전체 삭제 (서버가 알아서 하므로)
 
     } catch (error) {
         console.error("WebSocket 메시지 파싱 오류 또는 처리 오류:", error);
