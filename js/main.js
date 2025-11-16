@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (타이머 UI에서 '남은 시간'을 제거한 최종 수정본)
+// ❗️ (알림 버튼 클릭 시 '세탁 중' 강제 변경 버그 수정)
 
 let connectionStatusElement;
 
@@ -93,8 +93,6 @@ function updateConnectionStatus(status) {
     }
 }
 
-// js/main.js
-
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -104,13 +102,12 @@ async function handleSocketMessage(event) {
             if (message.machines && Array.isArray(message.machines)) {
                 for (const machine of message.machines) {
                     const isSubscribed = machine.isusing === 1;
-                    // ❗️ (타이머 관련 값들 전달)
                     updateMachineCard(
                         machine.machine_id, 
                         machine.status, 
-                        machine.timer,
+                        machine.timer, // 남은 시간 (총 시간 계산용)
                         isSubscribed,
-                        machine.elapsed_time_minutes 
+                        machine.elapsed_time_minutes // ❗️ 경과 시간
                     );
                 }
             }
@@ -124,28 +121,16 @@ async function handleSocketMessage(event) {
         const isSubscribed = null; 
         const newElapsedMinutes = message.elapsed_time_minutes;
 
-        // ❗️ [수정] 'room_status'만 남기고, 'notify' 타입 체크 삭제
+        // ❗️ [수정] 'room_status'만 처리
         if (message.type === 'room_status') { 
             const card = document.getElementById(`machine-${machineId}`);
             const machineType = card ? (card.dataset.machineType || 'washer') : 'washer';
 
-            // ❗️ [삭제] 'notify' 타입일 때 alert() 띄우던 로직 삭제
-            // if (message.type === 'notify') { ... }
-
             updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes); 
         }
-
-        // 3. ❗️ [삭제] FINISHED 상태일 때 후처리 (자동 구독 해제) 로직 전체 삭제
-        //
-        // if (newStatus === 'FINISHED') {
-        //     console.log(`알림 완료: ${machineId}번 자동 구독을 취소합니다.`);
-        //     try {
-        //         await api.toggleNotifyMe(machineId, false);
-        //     } catch (e) { ... }
-        //     
-        //     ( ... '빈자리 알림' 끄는 로직 ... )
-        // }
-        // ❗️ 위 블록 전체 삭제 (서버가 알아서 하므로)
+        
+        // ❗️ [삭제] 'notify' 타입 및 'FINISHED' 후처리 로직 삭제
+        // (이전 응답에서 제안한 '서버 역할 분리'를 적용한 버전)
 
     } catch (error) {
         console.error("WebSocket 메시지 파싱 오류 또는 처리 오류:", error);
@@ -155,7 +140,6 @@ async function handleSocketMessage(event) {
 
 /**
  * ❗️ [수정] updateMachineCard ('남은 시간' 제거)
- * (newElapsedMinutes 인자 추가)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -176,11 +160,10 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     const timerDiv = card.querySelector('.timer-display');
     const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
     const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
-    // ❗️ [삭제] const timerRemainingSpan = card.querySelector(`#timer-remaining-${machineId}`);
 
     const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
 
-    if (isOperating && timerDiv && timerTotalSpan && timerElapsedSpan) { // ❗️ timerRemainingSpan 제거
+    if (isOperating && timerDiv && timerTotalSpan && timerElapsedSpan) {
         timerDiv.style.display = 'block';
         
         // 1. 총 예상 시간 (경과 시간 + 남은 시간)
@@ -197,9 +180,6 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             elapsedText = `${newElapsedMinutes}분 진행`;
         }
         timerElapsedSpan.textContent = elapsedText;
-        
-        // 3. ❗️ [삭제] '남은 시간' 관련 로직
-        // timerRemainingSpan.textContent = formatTimer(newTimer, newStatus, machineType);
 
     } else if (timerDiv) {
         timerDiv.style.display = 'none'; // 작동 중이 아니면 숨김
@@ -287,7 +267,6 @@ function renderMachines(machines) {
 
         const displayTotalTime = (totalTime !== null && totalTime > 0) ? `약 ${totalTime}분` : '계산 중...';
         const displayElapsedTime = (elapsedMinutes !== null && elapsedMinutes >= 0) ? `${elapsedMinutes}분 진행` : '계산 중...';
-        // ❗️ [삭제] const displayTimerText = formatTimer(timerRemaining, machine.status, machineType);
         // --- ❗️ 계산 끝 ---
 
         const isDisabled = isOperating;
@@ -318,7 +297,7 @@ function renderMachines(machines) {
                     <span>진행 시간:</span>
                     <span id="timer-elapsed-${machine.machine_id}">${displayElapsedTime}</span>
                 </div>
-                </div>
+            </div>
             
             <button class="notify-start-btn" data-machine-id="${machine.machine_id}" ${showStartButton ? '' : 'style="display: none;"'}>
                 🔔 알림 받고 시작
@@ -343,7 +322,7 @@ function renderMachines(machines) {
 }
 
 /**
- * ❗️ [수정] "알림 받고 시작" 버튼 로직 (롤백 버그 수정)
+ * "알림 받고 시작" 버튼 로직
  */
 function addNotifyStartLogic() {
     document.querySelectorAll('.notify-start-btn').forEach(button => {
@@ -361,14 +340,14 @@ function addNotifyStartLogic() {
                 }
                 btn.style.display = 'none'; 
             } else {
-                handleDryerStart(btn, card);
+                handleDryerStart(btn, card); // 건조기 로직
             }
         });
     });
 }
 
 /**
- * ❗️ [수정] 건조기 시작 로직 (롤백 버그 수정)
+ * 건조기 시작 로직 (롤백 버그 수정)
  */
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
@@ -439,7 +418,7 @@ async function handleDryerStart(clickedBtn, card) {
 
 
 /**
- * ❗️ [수정] 코스 버튼 로직 (롤백 버그 수정 + UI 즉시 변경)
+ * ❗️ [수정] 코스 버튼 로직 (UI 강제 변경 버그 수정)
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -450,7 +429,11 @@ function addCourseButtonLogic() {
             const card = clickedBtn.closest('.machine-card');
             if (!card) return;
 
+            // ❗️ [수정] startButton을 여기서 미리 찾아둠
+            const startButton = card.querySelector('.notify-start-btn');
+            const courseButtonsDiv = card.querySelector('.course-buttons');
             const allButtonsOnCard = card.querySelectorAll('.course-btn');
+
             allButtonsOnCard.forEach(btn => {
                 btn.disabled = true;
                 if (btn === clickedBtn) {
@@ -497,9 +480,22 @@ function addCourseButtonLogic() {
                 
                 alert(`${courseName} 코스 알림이 등록되었습니다.`);
 
-                // ❗️ [수정] 성공 시, UI를 즉시 '작동 중'(Scenario B) 상태로 변경
-                // (서버가 timer, elapsed_time_minutes를 반환할 때까지 null로 보냄)
-                updateMachineCard(machineId, 'WASHING', null, true, null);
+                // ❗️ [버그 수정]
+                // 1. (BUG) updateMachineCard(...) 호출 제거
+                // updateMachineCard(machineId, 'WASHING', null, true, null);
+
+                // 2. (FIX) Scenario A 버튼(코스)을 수동으로 숨김
+                if (courseButtonsDiv) courseButtonsDiv.style.display = 'none';
+                if (startButton) startButton.style.display = 'none';
+
+                // 3. (FIX) Scenario B 버튼("알림 등록됨")을 수동으로 표시
+                const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
+                if (notifyMeButton) {
+                    notifyMeButton.style.display = 'block';
+                    notifyMeButton.textContent = '✅ 알림 등록됨';
+                    notifyMeButton.disabled = true;
+                }
+                // ❗️ [버그 수정 끝]
 
             } catch (error) {
                 // 6. ❗️ [수정] 실패 시 롤백
@@ -520,9 +516,7 @@ function addCourseButtonLogic() {
                     btn.textContent = btn.dataset.courseName; 
                 });
                 
-                const startButton = card.querySelector('.notify-start-btn');
                 if (startButton) startButton.style.display = 'block';
-                const courseButtonsDiv = card.querySelector('.course-buttons');
                 if (courseButtonsDiv) courseButtonsDiv.classList.remove('show-courses');
             }
         };
@@ -578,10 +572,12 @@ function translateStatus(status, machineType = 'washer') {
     switch (status) {
         case 'WASHING': return '세탁 중';
         case 'SPINNING': return '탈수 중';
-        case 'DRYING': '건조 중'; 
+        case 'DRYING': return '건조 중';
         case 'FINISHED':
             return (machineType === 'dryer') ? '건조 완료' : '세탁 완료'; 
         case 'OFF': return '대기 중';
         default: return status;
     }
 }
+
+// ❗️ [삭제] formatTimer 함수는 더 이상 사용되지 않습니다.
