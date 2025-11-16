@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (알림 버튼 클릭 시 '세탁 중' 강제 변경 버그 수정)
+// ❗️ (WebSocket 꼬임 문제를 해결한 최종본)
 
 let connectionStatusElement;
 
@@ -93,6 +93,7 @@ function updateConnectionStatus(status) {
     }
 }
 
+// ❗️ [수정] handleSocketMessage (로직 단순화)
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -123,14 +124,11 @@ async function handleSocketMessage(event) {
 
         // ❗️ [수정] 'room_status'만 처리
         if (message.type === 'room_status') { 
-            const card = document.getElementById(`machine-${machineId}`);
-            const machineType = card ? (card.dataset.machineType || 'washer') : 'washer';
-
             updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes); 
         }
         
         // ❗️ [삭제] 'notify' 타입 및 'FINISHED' 후처리 로직 삭제
-        // (이전 응답에서 제안한 '서버 역할 분리'를 적용한 버전)
+        // (서버가 역할을 분리했으므로 클라이언트는 이 로직이 필요 없음)
 
     } catch (error) {
         console.error("WebSocket 메시지 파싱 오류 또는 처리 오류:", error);
@@ -178,6 +176,10 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         let elapsedText = '계산 중...';
         if (newElapsedMinutes !== null && newElapsedMinutes >= 0) {
             elapsedText = `${newElapsedMinutes}분 진행`;
+        }
+        // ❗️ [수정] 탈수 시 0분으로 초기화되는 것을 반영
+        if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
+             elapsedText = `0분 진행 (탈수)`;
         }
         timerElapsedSpan.textContent = elapsedText;
 
@@ -322,7 +324,7 @@ function renderMachines(machines) {
 }
 
 /**
- * "알림 받고 시작" 버튼 로직
+ * "알림 받고 시작" 버튼 로직 (그대로)
  */
 function addNotifyStartLogic() {
     document.querySelectorAll('.notify-start-btn').forEach(button => {
@@ -347,7 +349,7 @@ function addNotifyStartLogic() {
 }
 
 /**
- * 건조기 시작 로직 (롤백 버그 수정)
+ * 건조기 시작 로직 (그대로)
  */
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
@@ -393,24 +395,20 @@ async function handleDryerStart(clickedBtn, card) {
         
         console.log(`API: 건조기 시작 및 알림 구독 성공`);
         
-        // ❗️ [수정] 상태 강제 변경(updateMachineCard) 제거, 텍스트만 변경
         clickedBtn.textContent = '✅ 알림 등록됨';
         
         alert(`건조기 알림이 등록되었습니다.`);
 
     } catch (error) {
-        // 6. ❗️ [수정] 실패 시 롤백
+        // ... (실패 시 롤백 로직 - 이전과 동일) ...
         console.error("API: 건조기 시작/알림 등록 실패:", error);
         alert(`시작 실패: ${error.message}`);
-
-        // ❗️ [추가] 1번(구독)이 성공했을 수 있으므로 구독 취소
         try {
             await api.toggleNotifyMe(machineId, false);
             console.log("롤백: 알림 구독 취소 완료");
         } catch (rollbackError) {
             console.error("롤백 실패 (구독 취소):", rollbackError);
         }
-        
         clickedBtn.disabled = false;
         clickedBtn.textContent = '🔔 알림 받고 시작';
     }
@@ -482,8 +480,6 @@ function addCourseButtonLogic() {
 
                 // ❗️ [버그 수정]
                 // 1. (BUG) updateMachineCard(...) 호출 제거
-                // updateMachineCard(machineId, 'WASHING', null, true, null);
-
                 // 2. (FIX) Scenario A 버튼(코스)을 수동으로 숨김
                 if (courseButtonsDiv) courseButtonsDiv.style.display = 'none';
                 if (startButton) startButton.style.display = 'none';
@@ -498,24 +494,19 @@ function addCourseButtonLogic() {
                 // ❗️ [버그 수정 끝]
 
             } catch (error) {
-                // 6. ❗️ [수정] 실패 시 롤백
+                // ... (실패 시 롤백 로직 - 이전과 동일) ...
                 console.error("API: 코스 시작/알림 등록 실패:", error);
                 alert(`시작 실패: ${error.message}`);
-                
-                // ❗️ [추가] 1번(구독)이 성공했을 수 있으므로 구독 취소
                 try {
                     await api.toggleNotifyMe(machineId, false);
                     console.log("롤백: 알림 구독 취소 완료");
                 } catch (rollbackError) {
                     console.error("롤백 실패 (구독 취소):", rollbackError);
                 }
-                
-                // (기존 UI 롤백 로직)
                 allButtonsOnCard.forEach(btn => {
                     btn.disabled = false;
                     btn.textContent = btn.dataset.courseName; 
                 });
-                
                 if (startButton) startButton.style.display = 'block';
                 if (courseButtonsDiv) courseButtonsDiv.classList.remove('show-courses');
             }
@@ -524,7 +515,7 @@ function addCourseButtonLogic() {
 }
 
 /**
- * ❗️ [수정] "완료 알림 받기" 버튼 로직 (롤백 버그 수정)
+ * "완료 알림 받기" 버튼 로직 (그대로)
  */
 function addNotifyMeDuringWashLogic() {
     document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
@@ -553,12 +544,9 @@ function addNotifyMeDuringWashLogic() {
                 alert('완료 알림이 등록되었습니다.');
 
             } catch (error) {
-                // 5. ❗️ [수정] 롤백 (API 호출 필요 없음)
+                // ... (실패 시 롤백 로직 - 이전과 동일) ...
                 console.error("API: '세탁 중' 알림 등록 실패:", error);
                 alert(`알림 등록 실패: ${error.message}`);
-                
-                // (어차피 toggleNotifyMe가 실패한 것이므로 API 롤백 불필요)
-                
                 btn.disabled = false;
                 btn.textContent = '🔔 완료 알림 받기';
             }
