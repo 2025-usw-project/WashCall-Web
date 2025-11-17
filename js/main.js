@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (WebSocket 꼬임 문제를 해결한 최종본)
+// ❗️ (새로고침 시 구독 상태 UI 유지 버그 수정)
 
 let connectionStatusElement;
 
@@ -93,7 +93,7 @@ function updateConnectionStatus(status) {
     }
 }
 
-// ❗️ [수정] handleSocketMessage (로직 단순화)
+// ❗️ [수정] handleSocketMessage (로직 단순화 - 이전과 동일)
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -122,14 +122,10 @@ async function handleSocketMessage(event) {
         const isSubscribed = null; 
         const newElapsedMinutes = message.elapsed_time_minutes;
 
-        // ❗️ [수정] 'room_status'만 처리
         if (message.type === 'room_status') { 
             updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes); 
         }
         
-        // ❗️ [삭제] 'notify' 타입 및 'FINISHED' 후처리 로직 삭제
-        // (서버가 역할을 분리했으므로 클라이언트는 이 로직이 필요 없음)
-
     } catch (error) {
         console.error("WebSocket 메시지 파싱 오류 또는 처리 오류:", error);
     }
@@ -164,7 +160,6 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     if (isOperating && timerDiv && timerTotalSpan && timerElapsedSpan) {
         timerDiv.style.display = 'block';
         
-        // 1. 총 예상 시간 (경과 시간 + 남은 시간)
         let totalTime = null;
         if (newTimer !== null && newElapsedMinutes !== null) {
             totalTime = newElapsedMinutes + newTimer;
@@ -172,19 +167,17 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         const totalText = (totalTime !== null && totalTime > 0) ? `약 ${totalTime}분` : '계산 중...';
         timerTotalSpan.textContent = totalText;
 
-        // 2. 진행 시간
         let elapsedText = '계산 중...';
         if (newElapsedMinutes !== null && newElapsedMinutes >= 0) {
             elapsedText = `${newElapsedMinutes}분 진행`;
         }
-        // ❗️ [수정] 탈수 시 0분으로 초기화되는 것을 반영
         if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
              elapsedText = `0분 진행 (탈수)`;
         }
         timerElapsedSpan.textContent = elapsedText;
 
     } else if (timerDiv) {
-        timerDiv.style.display = 'none'; // 작동 중이 아니면 숨김
+        timerDiv.style.display = 'none';
     }
     // --- ❗️ 타이머 로직 끝 ---
 
@@ -196,47 +189,56 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
     const courseButtons = card.querySelectorAll('.course-btn');
 
-    if (shouldBeDisabled) {
-        // 1. 작동 중일 때
+    // ❗️ [수정] isSubscribed 상태를 버튼 로직에서 명시적으로 처리
+    if (isSubscribed === true) {
+        // [1. 구독 상태가 true로 강제됨 (timer_sync 또는 새로고침)]
         if (startButton) startButton.style.display = 'none'; 
         if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
-        
         if (notifyMeButton) {
             notifyMeButton.style.display = 'block'; 
-            if (isSubscribed === false) { 
+            notifyMeButton.textContent = '✅ 알림 등록됨';
+            notifyMeButton.disabled = true;
+        }
+    } else if (isSubscribed === false) {
+        // [2. 구독 상태가 false로 강제됨 (timer_sync)]
+        // (작동 중/대기 중 상태는 shouldBeDisabled가 알아서 처리)
+        if (shouldBeDisabled) {
+             if (notifyMeButton) {
                 notifyMeButton.textContent = '🔔 완료 알림 받기';
                 notifyMeButton.disabled = false;
-            } else if (isSubscribed === true) {
-                notifyMeButton.textContent = '✅ 알림 등록됨';
-                notifyMeButton.disabled = true;
-            }
-        }
-        
-    } else {
-        // 2. 대기/완료 상태일 때
-        if (startButton) startButton.style.display = 'block'; 
-
-        if (machineType === 'washer') {
-            if (courseButtonsDiv) {
-                courseButtonsDiv.classList.remove('show-courses'); 
-                courseButtonsDiv.style.display = ''; 
-            }
-            if (courseButtons) {
-                courseButtons.forEach(btn => {
-                    btn.disabled = false; 
-                    btn.textContent = btn.dataset.courseName; 
-                });
-            }
+             }
         } else {
-            if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
+            if (startButton) startButton.style.display = 'block';
+            if (machineType === 'washer' && courseButtonsDiv) {
+                courseButtonsDiv.style.display = '';
+                courseButtonsDiv.classList.remove('show-courses');
+            }
+            if (notifyMeButton) notifyMeButton.style.display = 'none';
         }
-        
-        if (notifyMeButton) notifyMeButton.style.display = 'none'; 
+    } else {
+        // [3. isSubscribed가 null (room_status로 상태만 변경됨)]
+        // (버튼 상태는 그대로 두고, 작동/대기 상태만 변경)
+        if (shouldBeDisabled) {
+            // (작동 중으로 변경됨)
+            if (startButton) startButton.style.display = 'none'; 
+            if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
+            if (notifyMeButton) notifyMeButton.style.display = 'block'; 
+            // (이때 notifyMeButton의 텍스트/활성화 상태는 건드리지 않음)
+        } else {
+            // (대기 중으로 변경됨)
+            if (startButton) startButton.style.display = 'block';
+            if (machineType === 'washer' && courseButtonsDiv) {
+                courseButtonsDiv.style.display = '';
+                courseButtonsDiv.classList.remove('show-courses');
+            }
+            if (notifyMeButton) notifyMeButton.style.display = 'none'; 
+        }
     }
 }
 
+
 /**
- * ❗️ [수정] renderMachines (새 타이머 HTML 구조 적용)
+ * ❗️ [수정] renderMachines (새로고침 버그 수정)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -271,15 +273,36 @@ function renderMachines(machines) {
         const displayElapsedTime = (elapsedMinutes !== null && elapsedMinutes >= 0) ? `${elapsedMinutes}분 진행` : '계산 중...';
         // --- ❗️ 계산 끝 ---
 
+        
+        // --- ❗️ [버그 수정] 버튼 표시 로직 ---
         const isDisabled = isOperating;
         const isSubscribed = (machine.isusing === 1);
         
+        let showStartButton, showCourseButtons, showScenario_B;
+
+        if (isSubscribed) {
+            // [1. 이미 구독함] (새로고침 시)
+            showStartButton = false;
+            showCourseButtons = false;
+            showScenario_B = true; 
+        } else {
+            // [2. 구독 안 함]
+            if (isDisabled) {
+                // (작동 중) -> B버튼 ("완료 알림 받기")
+                showStartButton = false;
+                showCourseButtons = false;
+                showScenario_B = true;
+            } else {
+                // (대기 중) -> A버튼 ("알림 받고 시작")
+                showStartButton = true;
+                showCourseButtons = (!isDisabled && machineType === 'washer'); // 세탁기만 코스
+                showScenario_B = false;
+            }
+        }
+        
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
         const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
-
-        const showScenario_B = (isDisabled);
-        const showStartButton = (!isDisabled);
-        const showCourseButtons = (!isDisabled && machineType === 'washer');
+        // --- ❗️ 로직 수정 끝 ---
 
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
@@ -395,7 +418,14 @@ async function handleDryerStart(clickedBtn, card) {
         
         console.log(`API: 건조기 시작 및 알림 구독 성공`);
         
-        clickedBtn.textContent = '✅ 알림 등록됨';
+        // ❗️ [수정] 상태 강제 변경(updateMachineCard) 제거, 수동 UI 전환
+        clickedBtn.style.display = 'none'; // A 버튼 숨기기
+        const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
+        if (notifyMeButton) { // B 버튼 표시
+            notifyMeButton.style.display = 'block';
+            notifyMeButton.textContent = '✅ 알림 등록됨';
+            notifyMeButton.disabled = true;
+        }
         
         alert(`건조기 알림이 등록되었습니다.`);
 
@@ -427,7 +457,6 @@ function addCourseButtonLogic() {
             const card = clickedBtn.closest('.machine-card');
             if (!card) return;
 
-            // ❗️ [수정] startButton을 여기서 미리 찾아둠
             const startButton = card.querySelector('.notify-start-btn');
             const courseButtonsDiv = card.querySelector('.course-buttons');
             const allButtonsOnCard = card.querySelectorAll('.course-btn');
