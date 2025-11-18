@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (타이머 "계산 중..."일 때 아예 숨김 처리)
+// ❗️ (타이머 숨김 로직 강화, 속도 개선, 새로고침 버그 수정)
 
 let connectionStatusElement;
 
@@ -16,7 +16,6 @@ async function main() {
     try {
         updateConnectionStatus('connecting'); 
         
-        // ❗️ [필수] /load API가 'elapsed_time_minutes'를 반환해야 함
         const [machines] = await Promise.all([
             api.getInitialMachines(),
             loadCongestionTip() 
@@ -133,7 +132,7 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [수정] updateMachineCard ("계산 중..." 숨김 처리)
+ * ❗️ [수정] updateMachineCard ("계산 중..." 숨김 로직 강화)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -150,23 +149,25 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
-    // --- ❗️ [수정] 타이머 로직 ("계산 중..." 숨김) ---
+    // --- ❗️ [수정] 타이머 로직 ("계산 중..." 숨김 강화) ---
     const timerDiv = card.querySelector('.timer-display');
     const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
     const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
 
     const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
+    
+    // ❗️ [수정] 두 값이 모두 유효한 숫자인지 명확하게 확인
+    const hasTimer = (newTimer !== null && typeof newTimer === 'number');
+    const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
+    const canShowTimer = isOperating && hasTimer && hasElapsed;
 
-    if (isOperating && timerDiv && timerTotalSpan && timerElapsedSpan) {
+    if (canShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
         
-        let totalTime = null;
-        if (newTimer !== null && newElapsedMinutes !== null) {
-            totalTime = newElapsedMinutes + newTimer;
-        }
+        const totalTime = newElapsedMinutes + newTimer;
 
-        // ❗️ [수정] totalTime이 null (즉, "DEFAULT" 코스)이면 타이머 숨김
-        if (totalTime === null || totalTime <= 0) {
-            timerDiv.style.display = 'none';
+        // ❗️ [수정] 0분일 때도 숨김 처리 (기존 로직 유지)
+        if (totalTime <= 0) {
+             timerDiv.style.display = 'none';
         } else {
             // (정상 표시)
             timerDiv.style.display = 'block';
@@ -174,10 +175,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             const totalText = `약 ${totalTime}분`;
             timerTotalSpan.textContent = totalText;
 
-            let elapsedText = '계산 중...';
-            if (newElapsedMinutes !== null && newElapsedMinutes >= 0) {
-                elapsedText = `${newElapsedMinutes}분 진행`;
-            }
+            let elapsedText = `${newElapsedMinutes}분 진행`;
             if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
                 elapsedText = `0분 진행 (탈수)`;
             }
@@ -185,7 +183,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         }
 
     } else if (timerDiv) {
-        timerDiv.style.display = 'none'; // 작동 중이 아니면 숨김
+        timerDiv.style.display = 'none'; // 작동 중이 아니거나, 값이 null이면 숨김
     }
     // --- ❗️ 타이머 로직 끝 ---
 
@@ -241,7 +239,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
 
 
 /**
- * ❗️ [수정] renderMachines ("계산 중..." 숨김 처리)
+ * ❗️ [수정] renderMachines ("계산 중..." 숨김 로직 강화)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -266,17 +264,17 @@ function renderMachines(machines) {
         const timerRemaining = machine.timer;  // (남은 시간)
         const elapsedMinutes = machine.elapsed_time_minutes; // ❗️ (서버가 보내줘야 함)
         
-        let totalTime = null;
-        if (timerRemaining !== null && elapsedMinutes !== null) {
-            totalTime = elapsedMinutes + timerRemaining;
-        }
+        // ❗️ [수정] 두 값이 모두 유효한 숫자인지 명확하게 확인
+        const hasTimer = (timerRemaining !== null && typeof timerRemaining === 'number');
+        const hasElapsed = (elapsedMinutes !== null && typeof elapsedMinutes === 'number' && elapsedMinutes >= 0);
+        let totalTime = (hasTimer && hasElapsed) ? (elapsedMinutes + timerRemaining) : null;
 
-        // ❗️ [수정] totalTime이 null이면 (계산 중이면) 아예 숨김
+        // ❗️ [수정] totalTime이 null이거나 0 이하면 숨김
         const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
 
-        const displayTotalTime = (totalTime !== null && totalTime > 0) ? `약 ${totalTime}분` : '계산 중...';
-        const displayElapsedTime = (elapsedMinutes !== null && elapsedMinutes >= 0) ? `${elapsedMinutes}분 진행` : '계산 중...';
+        const displayTotalTime = (totalTime !== null && totalTime > 0) ? `약 ${totalTime}분` : '';
+        const displayElapsedTime = (elapsedMinutes !== null && elapsedMinutes >= 0) ? `${elapsedMinutes}분 진행` : '';
         // --- ❗️ 계산 끝 ---
 
         
