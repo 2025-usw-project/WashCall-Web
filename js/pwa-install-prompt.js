@@ -81,9 +81,9 @@ function checkAndShowPWAPrompt() {
         }
     }
     
-    // Android/Desktop은 beforeinstallprompt가 발생했을 때만, iOS는 항상 표시
-    if ((platform === 'android' || platform === 'desktop') && !deferredPrompt) {
-        console.log(`${platform}: beforeinstallprompt 대기 중...`);
+    // iOS는 항상 표시, Android/Desktop은 일단 표시 (설치 버튼 동작은 deferredPrompt 여부에 따라 결정)
+    if (platform === 'android' && !deferredPrompt) {
+        console.log('Android: beforeinstallprompt 대기 중...');
         return;
     }
     
@@ -141,6 +141,9 @@ function showPWAPrompt(platform) {
                 <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.5; opacity: 0.95;">
                     아래 <strong>"설치"</strong> 버튼을 눌러<br>
                     데스크톱 앱처럼 사용해보세요!
+                </p>
+                <p style="margin: 0 0 16px 0; font-size: 13px; opacity: 0.85; line-height: 1.4;">
+                    <em>※ 또는 Chrome 주소창 오른쪽 설치 아이콘(⊕)을 클릭하세요</em>
                 </p>
             `;
             break;
@@ -256,7 +259,18 @@ function showPWAPrompt(platform) {
     if (installButton) {
         installButton.addEventListener('click', async () => {
             if (!deferredPrompt) {
-                console.warn('설치 프롬프트를 사용할 수 없습니다.');
+                // deferredPrompt가 없는 경우 수동 설치 안내
+                const platform = detectPlatform();
+                let manualInstallMsg = '';
+                
+                if (platform === 'desktop') {
+                    manualInstallMsg = 'Chrome 주소창 오른쪽의 설치 아이콘(⊕)을 클릭하거나\n메뉴(⋮) > "WashCall 설치"를 선택하세요.';
+                } else {
+                    manualInstallMsg = '브라우저 설정에서 "홈 화면에 추가"를 선택하세요.';
+                }
+                
+                alert(manualInstallMsg);
+                console.warn('설치 프롬프트를 사용할 수 없습니다. 수동 설치 안내 표시');
                 dismissPWAPrompt(false);
                 return;
             }
