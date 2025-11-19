@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (timer_sync가 UI를 초기화하는 버그 수정)
+// ❗️ (타이머 숨김 로직 강화 + 속도 개선 + 버그 수정 통합본)
 
 let connectionStatusElement;
 
@@ -16,7 +16,6 @@ async function main() {
     try {
         updateConnectionStatus('connecting'); 
         
-        // ❗️ [필수] /load API가 'elapsed_time_minutes'를 반환해야 함
         const [machines] = await Promise.all([
             api.getInitialMachines(),
             loadCongestionTip() 
@@ -31,7 +30,6 @@ async function main() {
 }
 
 async function loadCongestionTip() {
-    // ... (이전과 동일) ...
     const tipContainer = document.getElementById('congestion-tip-container');
     if (!tipContainer) return;
     try {
@@ -50,7 +48,6 @@ async function loadCongestionTip() {
 
 function tryConnect() {
     api.connect(
-        // ... (이전과 동일) ...
         () => {
             updateConnectionStatus('success');
         },
@@ -68,7 +65,6 @@ function tryConnect() {
 }
 
 function updateConnectionStatus(status) {
-    // ... (이전과 동일) ...
     if (!connectionStatusElement) return;
     connectionStatusElement.className = 'status-alert';
     switch (status) {
@@ -93,7 +89,7 @@ function updateConnectionStatus(status) {
     }
 }
 
-// ❗️ [수정] handleSocketMessage (timer_sync 버그 수정)
+// ❗️ handleSocketMessage (timer_sync 버그 수정)
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -102,26 +98,21 @@ async function handleSocketMessage(event) {
         if (message.type === 'timer_sync') {
             if (message.machines && Array.isArray(message.machines)) {
                 for (const machine of message.machines) {
-                    
-                    // ❗️ [버그 수정]
-                    // timer_sync 페이로드에는 'isusing' 값이 없습니다.
-                    // 'undefined'가 'false'로 변환되어 UI를 초기화시키는 버그가 있었습니다.
-                    // 'isSubscribed'를 'null'로 전달하여 버튼 상태를 건드리지 않도록 합니다.
+                    // timer_sync는 구독 정보를 안 보내므로 null로 설정 (UI 초기화 방지)
                     const isSubscribed = null;
-                    
                     updateMachineCard(
                         machine.machine_id, 
                         machine.status, 
-                        machine.timer, // 남은 시간 (총 시간 계산용)
-                        isSubscribed,  // ❗️ null로 변경
-                        machine.elapsed_time_minutes // ❗️ 경과 시간
+                        machine.timer, 
+                        isSubscribed,
+                        machine.elapsed_time_minutes
                     );
                 }
             }
             return; 
         }
 
-        // 2. 개별 상태 변경 (room_status만 처리)
+        // 2. 개별 상태 변경
         const machineId = message.machine_id;
         const newStatus = message.status;
         const newTimer = (message.timer !== undefined) ? message.timer : null; 
@@ -139,7 +130,7 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [수정] updateMachineCard ("계산 중..." 숨김 로직 강화)
+ * ❗️ [수정] updateMachineCard ("계산 중..."일 때 숨김)
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -156,55 +147,47 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
-    // --- ❗️ [수정] 타이머 로직 ("계산 중..." 숨김 강화) ---
+    // --- ❗️ [핵심 수정] 타이머 숨김 로직 ---
     const timerDiv = card.querySelector('.timer-display');
     const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
     const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
 
     const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
-    
-    // ❗️ [수정] 두 값이 모두 유효한 숫자인지 명확하게 확인
+
+    // 유효한 시간인지 확인
     const hasTimer = (newTimer !== null && typeof newTimer === 'number');
     const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
-    const canShowTimer = isOperating && hasTimer && hasElapsed;
+    let totalTime = (hasTimer && hasElapsed) ? (newElapsedMinutes + newTimer) : null;
 
-    if (canShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
+    // ❗️ 작동 중이고, totalTime이 0보다 클 때만 표시
+    const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
+
+    if (shouldShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
+        timerDiv.style.display = 'block';
         
-        const totalTime = newElapsedMinutes + newTimer;
+        timerTotalSpan.textContent = `약 ${totalTime}분`;
 
-        // ❗️ [수정] 0분일 때도 숨김 처리 (기존 로직 유지)
-        if (totalTime <= 0) {
-             timerDiv.style.display = 'none';
-        } else {
-            // (정상 표시)
-            timerDiv.style.display = 'block';
-            
-            const totalText = `약 ${totalTime}분`;
-            timerTotalSpan.textContent = totalText;
-
-            let elapsedText = `${newElapsedMinutes}분 진행`;
-            if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
-                elapsedText = `0분 진행 (탈수)`;
-            }
-            timerElapsedSpan.textContent = elapsedText;
+        let elapsedText = `${newElapsedMinutes}분 진행`;
+        if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
+            elapsedText = `0분 진행 (탈수)`;
         }
+        timerElapsedSpan.textContent = elapsedText;
 
     } else if (timerDiv) {
-        timerDiv.style.display = 'none'; // 작동 중이 아니거나, 값이 null이면 숨김
+        // ❗️ 그 외(수동 시작 포함)에는 무조건 숨김
+        timerDiv.style.display = 'none';
     }
     // --- ❗️ 타이머 로직 끝 ---
 
     const shouldBeDisabled = isOperating;
     
-    // ... (이하 버튼 로직은 이전과 동일) ...
     const startButton = card.querySelector('.notify-start-btn');
     const courseButtonsDiv = card.querySelector('.course-buttons');
     const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
-    const courseButtons = card.querySelectorAll('.course-btn');
 
-    // ❗️ [수정] isSubscribed 상태를 버튼 로직에서 명시적으로 처리
+    // --- 버튼 표시 로직 ---
     if (isSubscribed === true) {
-        // [1. 구독 상태가 true로 강제됨 (timer_sync 또는 새로고침)]
+        // [1. 구독 상태]
         if (startButton) startButton.style.display = 'none'; 
         if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
         if (notifyMeButton) {
@@ -213,7 +196,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             notifyMeButton.disabled = true;
         }
     } else if (isSubscribed === false) {
-        // [2. 구독 상태가 false로 강제됨 (timer_sync)]
+        // [2. 구독 안 함]
         if (shouldBeDisabled) {
              if (notifyMeButton) {
                 notifyMeButton.textContent = '🔔 완료 알림 받기';
@@ -228,17 +211,23 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             if (notifyMeButton) notifyMeButton.style.display = 'none';
         }
     } else {
-        // [3. isSubscribed가 null (room_status 또는 ❗️timer_sync)]
-        // (버튼 상태는 그대로 두고, 작동/대기 상태만 변경)
+        // [3. isSubscribed가 null (업데이트)]
         if (shouldBeDisabled) {
             if (startButton) startButton.style.display = 'none'; 
             if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
             if (notifyMeButton) notifyMeButton.style.display = 'block'; 
         } else {
-            if (startButton) startButton.style.display = 'block';
-            if (machineType === 'washer' && courseButtonsDiv) {
-                courseButtonsDiv.style.display = '';
-                courseButtonsDiv.classList.remove('show-courses');
+            // (대기 중) -> 메뉴가 열려있는지 확인
+            const isMenuOpen = courseButtonsDiv && courseButtonsDiv.classList.contains('show-courses');
+            if (isMenuOpen) {
+                 if (startButton) startButton.style.display = 'none';
+                 if (courseButtonsDiv) courseButtonsDiv.style.display = ''; 
+            } else {
+                 if (startButton) startButton.style.display = 'block';
+                 if (machineType === 'washer' && courseButtonsDiv) {
+                     courseButtonsDiv.style.display = '';
+                     courseButtonsDiv.classList.remove('show-courses');
+                 }
             }
             if (notifyMeButton) notifyMeButton.style.display = 'none'; 
         }
@@ -247,7 +236,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
 
 
 /**
- * ❗️ [수정] renderMachines ("계산 중..." 숨김 로직 강화)
+ * ❗️ [수정] renderMachines ("계산 중..."일 때 숨김)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -266,27 +255,27 @@ function renderMachines(machines) {
         
         machineDiv.id = `machine-${machine.machine_id}`; 
         
-        // --- ❗️ [수정] 타이머 텍스트 계산 ('남은 시간' 제거) ---
+        // --- ❗️ [핵심 수정] 타이머 초기 계산 및 숨김 여부 결정 ---
         const isOperating = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
         
-        const timerRemaining = machine.timer;  // (남은 시간)
-        const elapsedMinutes = machine.elapsed_time_minutes; // ❗️ (서버가 보내줘야 함)
+        const timerRemaining = machine.timer; 
+        const elapsedMinutes = machine.elapsed_time_minutes;
         
-        // ❗️ [수정] 두 값이 모두 유효한 숫자인지 명확하게 확인
+        // 유효성 체크
         const hasTimer = (timerRemaining !== null && typeof timerRemaining === 'number');
         const hasElapsed = (elapsedMinutes !== null && typeof elapsedMinutes === 'number' && elapsedMinutes >= 0);
         let totalTime = (hasTimer && hasElapsed) ? (elapsedMinutes + timerRemaining) : null;
 
-        // ❗️ [수정] totalTime이 null이거나 0 이하면 숨김
+        // ❗️ totalTime이 없거나 0 이하면 숨김
         const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
 
-        const displayTotalTime = (totalTime !== null && totalTime > 0) ? `약 ${totalTime}분` : '';
-        const displayElapsedTime = (elapsedMinutes !== null && elapsedMinutes >= 0) ? `${elapsedMinutes}분 진행` : '';
+        const displayTotalTime = shouldShowTimer ? `약 ${totalTime}분` : '';
+        const displayElapsedTime = shouldShowTimer ? `${elapsedMinutes}분 진행` : '';
         // --- ❗️ 계산 끝 ---
 
         
-        // --- ❗️ [버그 수정] 버튼 표시 로직 (이전과 동일) ---
+        // --- 버튼 표시 로직 (이전과 동일) ---
         const isDisabled = isOperating;
         const isSubscribed = (machine.isusing === 1);
         
@@ -310,11 +299,9 @@ function renderMachines(machines) {
         
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
         const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
-        // --- ❗️ 로직 수정 끝 ---
 
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
-        // --- ❗️ [수정] HTML 템플릿 ('남은 시간' 제거) ---
         machineDiv.innerHTML = `
             <h3>${machineDisplayName}</h3> 
             <div class="status-display">
@@ -348,14 +335,13 @@ function renderMachines(machines) {
         container.appendChild(machineDiv);
     });
 
-    // 이벤트 리스너 연결 (이전과 동일)
     addNotifyStartLogic(); 
     addCourseButtonLogic(); 
     addNotifyMeDuringWashLogic(); 
 }
 
 /**
- * "알림 받고 시작" 버튼 로직 (그대로)
+ * "알림 받고 시작" 버튼 로직
  */
 function addNotifyStartLogic() {
     document.querySelectorAll('.notify-start-btn').forEach(button => {
@@ -373,14 +359,14 @@ function addNotifyStartLogic() {
                 }
                 btn.style.display = 'none'; 
             } else {
-                handleDryerStart(btn, card); // 건조기 로직
+                handleDryerStart(btn, card);
             }
         });
     });
 }
 
 /**
- * ❗️ [수정] 건조기 시작 로직 (속도 개선)
+ * 건조기 시작 로직
  */
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
@@ -390,7 +376,6 @@ async function handleDryerStart(clickedBtn, card) {
     clickedBtn.textContent = "요청 중...";
 
     try {
-        // ... (빈자리 알림 끄기 로직 - 이전과 동일) ...
         const roomSubState = localStorage.getItem('washcallRoomSubState');
         if (roomSubState === 'true') {
             console.log("중복 방지: '빈자리 알림'을 끕니다.");
@@ -400,17 +385,16 @@ async function handleDryerStart(clickedBtn, card) {
                 const mid = parseInt(card.id.replace('machine-', ''), 10);
                 if(mid) tasks.push(api.toggleNotifyMe(mid, false));
             });
-            await Promise.all(tasks); // ❗️ 병목 지점 1
+            await Promise.all(tasks);
             localStorage.setItem('washcallRoomSubState', 'false');
             const masterBtn = document.getElementById('room-subscribe-button');
             if (masterBtn) {
                 masterBtn.textContent = "🔔 빈자리 알림 받기";
                 masterBtn.classList.remove('subscribed'); 
             }
-            alert("'빈자리 알림'이 꺼지고, '개별 알림'이 켜집니다."); // ❗️ (이 alert는 유지)
+            alert("'빈자리 알림'이 꺼지고, '개별 알림'이 켜집니다.");
         }
 
-        // ... (FCM 토큰 발급 - 이전과 동일) ...
         const tokenOrStatus = await requestPermissionAndGetToken();
         if (tokenOrStatus === 'denied') {
             throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
@@ -420,7 +404,6 @@ async function handleDryerStart(clickedBtn, card) {
         
         const token = tokenOrStatus;
 
-        // ❗️ [수정] 3개의 API를 병렬(동시)로 처리하여 속도 개선
         await Promise.all([
             api.registerPushToken(token),
             api.toggleNotifyMe(machineId, true),
@@ -429,10 +412,6 @@ async function handleDryerStart(clickedBtn, card) {
         
         console.log(`API: 건조기 시작 및 알림 구독 성공 (병렬 처리)`);
         
-        // ❗️ [수정] alert() 제거
-        // alert(`건조기 알림이 등록되었습니다.`);
-        
-        // (수동 UI 전환)
         clickedBtn.style.display = 'none'; 
         const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
         if (notifyMeButton) { 
@@ -442,7 +421,6 @@ async function handleDryerStart(clickedBtn, card) {
         }
 
     } catch (error) {
-        // ... (실패 시 롤백 로직 - 이전과 동일) ...
         console.error("API: 건조기 시작/알림 등록 실패:", error);
         alert(`시작 실패: ${error.message}`);
         try {
@@ -458,7 +436,7 @@ async function handleDryerStart(clickedBtn, card) {
 
 
 /**
- * ❗️ [수정] 코스 버튼 로직 (속도 개선)
+ * 코스 버튼 로직
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -481,7 +459,6 @@ function addCourseButtonLogic() {
             });
 
             try {
-                // ... (빈자리 알림 끄기 로직 - 이전과 동일) ...
                 const roomSubState = localStorage.getItem('washcallRoomSubState');
                 if (roomSubState === 'true') {
                     console.log("중복 방지: '빈자리 알림'을 끕니다.");
@@ -491,17 +468,16 @@ function addCourseButtonLogic() {
                         const mid = parseInt(card.id.replace('machine-', ''), 10);
                         if(mid) tasks.push(api.toggleNotifyMe(mid, false));
                     });
-                    await Promise.all(tasks); // ❗️ 병목 지점 1
+                    await Promise.all(tasks);
                     localStorage.setItem('washcallRoomSubState', 'false');
                     const masterBtn = document.getElementById('room-subscribe-button');
                     if (masterBtn) {
                         masterBtn.textContent = "🔔 빈자리 알림 받기";
                         masterBtn.classList.remove('subscribed'); 
                     }
-                    alert("'빈자리 알림'이 꺼지고, '개별 알림'이 켜집니다."); // ❗️ (이 alert는 유지)
+                    alert("'빈자리 알림'이 꺼지고, '개별 알림'이 켜집니다.");
                 }
 
-                // ... (FCM 토큰 발급 - 이전과 동일) ...
                 const tokenOrStatus = await requestPermissionAndGetToken();
                 if (tokenOrStatus === 'denied') {
                     throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
@@ -511,7 +487,6 @@ function addCourseButtonLogic() {
                 
                 const token = tokenOrStatus;
 
-                // ❗️ [수정] 3개의 API를 병렬(동시)로 처리하여 속도 개선
                 await Promise.all([
                     api.registerPushToken(token),
                     api.toggleNotifyMe(machineId, true),
@@ -520,10 +495,6 @@ function addCourseButtonLogic() {
                 
                 console.log(`API: 코스 시작 및 알림 구독 성공 (병렬 처리)`);
                 
-                // ❗️ [수정] alert() 제거
-                // alert(`${courseName} 코스 알림이 등록되었습니다.`);
-
-                // (수동 UI 전환)
                 if (courseButtonsDiv) courseButtonsDiv.style.display = 'none';
                 if (startButton) startButton.style.display = 'none';
                 const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
@@ -534,7 +505,6 @@ function addCourseButtonLogic() {
                 }
 
             } catch (error) {
-                // ... (실패 시 롤백 로직 - 이전과 동일) ...
                 console.error("API: 코스 시작/알림 등록 실패:", error);
                 alert(`시작 실패: ${error.message}`);
                 try {
@@ -555,7 +525,7 @@ function addCourseButtonLogic() {
 }
 
 /**
- * ❗️ [수정] "완료 알림 받기" 버튼 로직 (속도 개선)
+ * "완료 알림 받기" 버튼 로직
  */
 function addNotifyMeDuringWashLogic() {
     document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
@@ -567,7 +537,6 @@ function addNotifyMeDuringWashLogic() {
             btn.textContent = "요청 중...";
 
             try {
-                // ... (FCM 토큰 발급 - 이전과 동일) ...
                 const tokenOrStatus = await requestPermissionAndGetToken();
                 if (tokenOrStatus === 'denied') {
                     throw new Error("알림이 '차단' 상태입니다. 🔒 아이콘을 클릭하여 '허용'으로 변경해주세요.");
@@ -577,7 +546,6 @@ function addNotifyMeDuringWashLogic() {
                 
                 const token = tokenOrStatus;
 
-                // ❗️ [수정] 2개의 API를 병렬(동시)로 처리
                 await Promise.all([
                     api.registerPushToken(token),
                     api.toggleNotifyMe(machineId, true)
@@ -585,11 +553,7 @@ function addNotifyMeDuringWashLogic() {
 
                 btn.textContent = '✅ 알림 등록됨';
                 
-                // ❗️ [수정] alert() 제거
-                // alert('완료 알림이 등록되었습니다.');
-
             } catch (error) {
-                // ... (실패 시 롤백 로직 - 이전과 동일) ...
                 console.error("API: '세탁 중' 알림 등록 실패:", error);
                 alert(`알림 등록 실패: ${error.message}`);
                 btn.disabled = false;
@@ -600,7 +564,7 @@ function addNotifyMeDuringWashLogic() {
 }
 
 
-// (유틸리티 함수 - 이전과 동일)
+// (유틸리티 함수)
 function translateStatus(status, machineType = 'washer') {
     switch (status) {
         case 'WASHING': return '세탁 중';
@@ -612,5 +576,3 @@ function translateStatus(status, machineType = 'washer') {
         default: return status;
     }
 }
-
-// ❗️ [삭제] formatTimer 함수는 더 이상 사용되지 않습니다.
