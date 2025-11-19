@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (타이머 숨김 로직 강화 + 속도 개선 + 버그 수정 통합본)
+// ❗️ (외부 클릭 시 메뉴 닫기 + 타이머 숨김 + 속도 개선 + 버그 수정 통합본)
 
 let connectionStatusElement;
 
@@ -22,6 +22,10 @@ async function main() {
         ]);
 
         renderMachines(machines); 
+        
+        // ❗️ [신규] 외부 클릭 감지 리스너 등록
+        addGlobalClickListener();
+
         tryConnect(); 
     } catch (error) {
         console.error("초기 세탁기 목록 또는 팁 로드 실패:", error);
@@ -89,7 +93,7 @@ function updateConnectionStatus(status) {
     }
 }
 
-// ❗️ handleSocketMessage (timer_sync 버그 수정)
+// ❗️ handleSocketMessage
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -130,7 +134,7 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ [수정] updateMachineCard ("계산 중..."일 때 숨김)
+ * ❗️ updateMachineCard
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -147,7 +151,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
-    // --- ❗️ [핵심 수정] 타이머 숨김 로직 ---
+    // --- ❗️ 타이머 숨김 로직 ---
     const timerDiv = card.querySelector('.timer-display');
     const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
     const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
@@ -159,7 +163,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
     let totalTime = (hasTimer && hasElapsed) ? (newElapsedMinutes + newTimer) : null;
 
-    // ❗️ 작동 중이고, totalTime이 0보다 클 때만 표시
+    // ❗️ 작동 중이고, totalTime이 0보다 클 때만 표시 (아니면 숨김)
     const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
 
     if (shouldShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
@@ -174,7 +178,6 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         timerElapsedSpan.textContent = elapsedText;
 
     } else if (timerDiv) {
-        // ❗️ 그 외(수동 시작 포함)에는 무조건 숨김
         timerDiv.style.display = 'none';
     }
     // --- ❗️ 타이머 로직 끝 ---
@@ -220,9 +223,11 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             // (대기 중) -> 메뉴가 열려있는지 확인
             const isMenuOpen = courseButtonsDiv && courseButtonsDiv.classList.contains('show-courses');
             if (isMenuOpen) {
+                 // 메뉴 유지
                  if (startButton) startButton.style.display = 'none';
                  if (courseButtonsDiv) courseButtonsDiv.style.display = ''; 
             } else {
+                 // 기본 상태
                  if (startButton) startButton.style.display = 'block';
                  if (machineType === 'washer' && courseButtonsDiv) {
                      courseButtonsDiv.style.display = '';
@@ -236,7 +241,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
 
 
 /**
- * ❗️ [수정] renderMachines ("계산 중..."일 때 숨김)
+ * ❗️ renderMachines
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -255,27 +260,22 @@ function renderMachines(machines) {
         
         machineDiv.id = `machine-${machine.machine_id}`; 
         
-        // --- ❗️ [핵심 수정] 타이머 초기 계산 및 숨김 여부 결정 ---
+        // --- ❗️ 타이머 초기화 ---
         const isOperating = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
-        
         const timerRemaining = machine.timer; 
         const elapsedMinutes = machine.elapsed_time_minutes;
         
-        // 유효성 체크
         const hasTimer = (timerRemaining !== null && typeof timerRemaining === 'number');
         const hasElapsed = (elapsedMinutes !== null && typeof elapsedMinutes === 'number' && elapsedMinutes >= 0);
         let totalTime = (hasTimer && hasElapsed) ? (elapsedMinutes + timerRemaining) : null;
 
-        // ❗️ totalTime이 없거나 0 이하면 숨김
         const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
         const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
 
         const displayTotalTime = shouldShowTimer ? `약 ${totalTime}분` : '';
         const displayElapsedTime = shouldShowTimer ? `${elapsedMinutes}분 진행` : '';
-        // --- ❗️ 계산 끝 ---
-
         
-        // --- 버튼 표시 로직 (이전과 동일) ---
+        // --- 버튼 로직 ---
         const isDisabled = isOperating;
         const isSubscribed = (machine.isusing === 1);
         
@@ -355,7 +355,12 @@ function addNotifyStartLogic() {
             if (machineType === 'washer') {
                 const courseButtonsDiv = card.querySelector('.course-buttons');
                 if (courseButtonsDiv) {
+                    // 클릭 시 메뉴 열기
                     courseButtonsDiv.classList.add('show-courses');
+                    // 전파 중단 (addGlobalClickListener가 즉시 닫는 것을 방지하기 위함이지만, 
+                    // startButton은 카드 내부에 있으므로 card.contains(target)은 true가 되어
+                    // 전파되어도 닫히지 않습니다. 안전을 위해 stopPropagation 권장)
+                    event.stopPropagation();
                 }
                 btn.style.display = 'none'; 
             } else {
@@ -366,7 +371,35 @@ function addNotifyStartLogic() {
 }
 
 /**
- * 건조기 시작 로직
+ * ❗️ [신규] 외부 클릭 시 코스 메뉴 닫기
+ */
+function addGlobalClickListener() {
+    document.addEventListener('click', (event) => {
+        const allCards = document.querySelectorAll('.machine-card');
+        
+        allCards.forEach(card => {
+            const courseButtonsDiv = card.querySelector('.course-buttons');
+            const startButton = card.querySelector('.notify-start-btn');
+            
+            // 1. 메뉴가 열려있는지 확인
+            if (courseButtonsDiv && courseButtonsDiv.classList.contains('show-courses')) {
+                
+                // 2. 클릭된 요소가 이 카드 내부가 아닌지 확인
+                if (!card.contains(event.target)) {
+                    // 외부 클릭임 -> 메뉴 닫고 초기화
+                    courseButtonsDiv.classList.remove('show-courses');
+                    if (startButton) {
+                        startButton.style.display = 'block';
+                    }
+                }
+            }
+        });
+    });
+}
+
+
+/**
+ * 건조기 시작 로직 (속도 개선)
  */
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
@@ -436,7 +469,7 @@ async function handleDryerStart(clickedBtn, card) {
 
 
 /**
- * 코스 버튼 로직
+ * 코스 버튼 로직 (속도 개선)
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -525,7 +558,7 @@ function addCourseButtonLogic() {
 }
 
 /**
- * "완료 알림 받기" 버튼 로직
+ * "완료 알림 받기" 버튼 로직 (속도 개선)
  */
 function addNotifyMeDuringWashLogic() {
     document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
