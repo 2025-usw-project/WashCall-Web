@@ -2,29 +2,28 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WashCall - 실시간 세탁실</title>
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    
-    <!-- PWA Meta Tags -->
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="WashCall">
-    <link rel="apple-touch-icon" href="/images/favicon.png">
-    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    <link rel="icon" href="/favicon.png" type="image/png">
+
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" href="favicon.png" type="image/png">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
     <nav class="navbar">
         <a href="index.html" class="navbar-brand">WashCall</a>
+
         <button class="navbar-toggle" id="navbarToggle">
             &#9776; 
         </button>
+        
         <ul class="navbar-nav" id="navbarMenu">
             <li><a href="index.html">실시간 현황</a></li>
             <li><a href="congestion.html">혼잡도 분석</a></li>
@@ -37,41 +36,58 @@
                     <span class="theme-slider"></span>
                 </label>
             </li>
-            
         </ul>
     </nav>
 
     <main class="container">
         
         <header class="main-header">
-            <h2>실시간 세탁기 현황</h2>
-            <p>현재 세탁기 상태를 실시간으로 확인하세요.</p>
+            <h2>세탁실 실시간 현황</h2>
+            <p>세탁기 상태를 확인하고 알림을 받아보세요.</p>
         </header>
-
-        <div id="congestion-tip-container" class="tip-container" style="display: none;">
-            </div>
-
-        <div id="connection-status" class="status-alert">
-        서버와 연결을 시도 중...
-        </div>
-
+        
+        <div id="connection-status" class="status-alert"></div>
+        
         <div class="push-container">
-            <button id="room-subscribe-button">🔔 빈자리 알림 받기</button> 
+            <button id="room-subscribe-button" class="push-btn">🔔 빈자리 알림 받기</button>
+            <p id="push-status-msg"></p>
         </div>
+
+        <div id="congestion-tip-container" class="tip-container" style="display: none;"></div>
+
         <div id="machine-list-container">
-            </div>
+            <div style="text-align: center; padding: 20px;">로딩 중...</div>
+        </div>
 
     </main>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+    <div id="course-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>세탁 코스 선택</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <p>원하는 코스를 선택하면 알림이 등록됩니다.</p>
+            <div class="modal-body">
+                <button class="modal-course-btn" data-course="표준">
+                    <span class="icon">👕</span> 표준
+                </button>
+                <button class="modal-course-btn" data-course="강력">
+                    <span class="icon">💪</span> 강력
+                </button>
+                <button class="modal-course-btn" data-course="쾌속">
+                    <span class="icon">⚡</span> 쾌속
+                </button>
+            </div>
+        </div>
+    </div>
 
-    <script src="js/server-api.js"></script>
-    <script src="js/mock-data.js"></script>
-    <script src="js/auth.js"></script> 
-
+    <script src="js/mock-data.js"></script> <script src="js/server-api.js"></script> 
     <script src="js/push.js"></script>
-    <script src="js/pwa-install-prompt.js"></script>
-    <script src="js/main.js?v=123"></script> <script src="js/navbar.js"></script>
-    </body>
+    <script src="js/auth.js"></script> 
+    <script src="js/main.js"></script>
+    <script src="js/navbar.js"></script>
+    <script src="js/ios-pwa-prompt.js"></script>
+
+</body>
 </html>
