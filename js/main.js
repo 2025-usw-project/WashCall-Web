@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (외부 클릭 시 메뉴 닫기 + 타이머 숨김 + 속도 개선 + 버그 수정 통합본)
+// ❗️ (버튼 이름 변경: "알림 받고 시작" -> "세탁 시작")
 
 let connectionStatusElement;
 
@@ -23,7 +23,7 @@ async function main() {
 
         renderMachines(machines); 
         
-        // ❗️ [신규] 외부 클릭 감지 리스너 등록
+        // 외부 클릭 감지 리스너 등록
         addGlobalClickListener();
 
         tryConnect(); 
@@ -93,7 +93,7 @@ function updateConnectionStatus(status) {
     }
 }
 
-// ❗️ handleSocketMessage
+// handleSocketMessage
 async function handleSocketMessage(event) {
     try {
         const message = JSON.parse(event.data); 
@@ -102,8 +102,7 @@ async function handleSocketMessage(event) {
         if (message.type === 'timer_sync') {
             if (message.machines && Array.isArray(message.machines)) {
                 for (const machine of message.machines) {
-                    // timer_sync는 구독 정보를 안 보내므로 null로 설정 (UI 초기화 방지)
-                    const isSubscribed = null;
+                    const isSubscribed = null; // 구독 정보 없음 -> UI 유지
                     updateMachineCard(
                         machine.machine_id, 
                         machine.status, 
@@ -134,7 +133,7 @@ async function handleSocketMessage(event) {
 
 
 /**
- * ❗️ updateMachineCard
+ * updateMachineCard
  */
 function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElapsedMinutes) {
     const card = document.getElementById(`machine-${machineId}`);
@@ -151,19 +150,17 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
         statusStrong.textContent = translateStatus(newStatus, machineType);
     }
 
-    // --- ❗️ 타이머 숨김 로직 ---
+    // --- 타이머 로직 ---
     const timerDiv = card.querySelector('.timer-display');
     const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
     const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
 
     const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
 
-    // 유효한 시간인지 확인
     const hasTimer = (newTimer !== null && typeof newTimer === 'number');
     const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
     let totalTime = (hasTimer && hasElapsed) ? (newElapsedMinutes + newTimer) : null;
 
-    // ❗️ 작동 중이고, totalTime이 0보다 클 때만 표시 (아니면 숨김)
     const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
 
     if (shouldShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
@@ -180,7 +177,6 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     } else if (timerDiv) {
         timerDiv.style.display = 'none';
     }
-    // --- ❗️ 타이머 로직 끝 ---
 
     const shouldBeDisabled = isOperating;
     
@@ -214,7 +210,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             if (notifyMeButton) notifyMeButton.style.display = 'none';
         }
     } else {
-        // [3. isSubscribed가 null (업데이트)]
+        // [3. isSubscribed가 null]
         if (shouldBeDisabled) {
             if (startButton) startButton.style.display = 'none'; 
             if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
@@ -223,11 +219,9 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
             // (대기 중) -> 메뉴가 열려있는지 확인
             const isMenuOpen = courseButtonsDiv && courseButtonsDiv.classList.contains('show-courses');
             if (isMenuOpen) {
-                 // 메뉴 유지
                  if (startButton) startButton.style.display = 'none';
                  if (courseButtonsDiv) courseButtonsDiv.style.display = ''; 
             } else {
-                 // 기본 상태
                  if (startButton) startButton.style.display = 'block';
                  if (machineType === 'washer' && courseButtonsDiv) {
                      courseButtonsDiv.style.display = '';
@@ -241,7 +235,7 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
 
 
 /**
- * ❗️ renderMachines
+ * ❗️ [수정] renderMachines (버튼 이름 변경 적용)
  */
 function renderMachines(machines) {
     const container = document.getElementById('machine-list-container');
@@ -260,7 +254,7 @@ function renderMachines(machines) {
         
         machineDiv.id = `machine-${machine.machine_id}`; 
         
-        // --- ❗️ 타이머 초기화 ---
+        // --- 타이머 ---
         const isOperating = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
         const timerRemaining = machine.timer; 
         const elapsedMinutes = machine.elapsed_time_minutes;
@@ -302,6 +296,7 @@ function renderMachines(machines) {
 
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
+        // ❗️ [수정] "알림 받고 시작" -> "세탁 시작"
         machineDiv.innerHTML = `
             <h3>${machineDisplayName}</h3> 
             <div class="status-display">
@@ -320,7 +315,7 @@ function renderMachines(machines) {
             </div>
             
             <button class="notify-start-btn" data-machine-id="${machine.machine_id}" ${showStartButton ? '' : 'style="display: none;"'}>
-                🔔 알림 받고 시작
+                🔔 세탁 시작
             </button>
             <div class="course-buttons" ${showCourseButtons ? '' : 'style="display: none;"'}>
                 <button class="course-btn" data-machine-id="${machine.machine_id}" data-course-name="표준">표준</button>
@@ -341,7 +336,7 @@ function renderMachines(machines) {
 }
 
 /**
- * "알림 받고 시작" 버튼 로직
+ * "세탁 시작" 버튼 로직
  */
 function addNotifyStartLogic() {
     document.querySelectorAll('.notify-start-btn').forEach(button => {
@@ -355,12 +350,8 @@ function addNotifyStartLogic() {
             if (machineType === 'washer') {
                 const courseButtonsDiv = card.querySelector('.course-buttons');
                 if (courseButtonsDiv) {
-                    // 클릭 시 메뉴 열기
                     courseButtonsDiv.classList.add('show-courses');
-                    // 전파 중단 (addGlobalClickListener가 즉시 닫는 것을 방지하기 위함이지만, 
-                    // startButton은 카드 내부에 있으므로 card.contains(target)은 true가 되어
-                    // 전파되어도 닫히지 않습니다. 안전을 위해 stopPropagation 권장)
-                    event.stopPropagation();
+                    event.stopPropagation(); // 메뉴 닫힘 방지
                 }
                 btn.style.display = 'none'; 
             } else {
@@ -371,7 +362,7 @@ function addNotifyStartLogic() {
 }
 
 /**
- * ❗️ [신규] 외부 클릭 시 코스 메뉴 닫기
+ * 외부 클릭 시 코스 메뉴 닫기
  */
 function addGlobalClickListener() {
     document.addEventListener('click', (event) => {
@@ -381,12 +372,8 @@ function addGlobalClickListener() {
             const courseButtonsDiv = card.querySelector('.course-buttons');
             const startButton = card.querySelector('.notify-start-btn');
             
-            // 1. 메뉴가 열려있는지 확인
             if (courseButtonsDiv && courseButtonsDiv.classList.contains('show-courses')) {
-                
-                // 2. 클릭된 요소가 이 카드 내부가 아닌지 확인
                 if (!card.contains(event.target)) {
-                    // 외부 클릭임 -> 메뉴 닫고 초기화
                     courseButtonsDiv.classList.remove('show-courses');
                     if (startButton) {
                         startButton.style.display = 'block';
@@ -399,7 +386,7 @@ function addGlobalClickListener() {
 
 
 /**
- * 건조기 시작 로직 (속도 개선)
+ * ❗️ [수정] 건조기 시작 로직 (버튼 이름 변경 적용)
  */
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
@@ -463,13 +450,13 @@ async function handleDryerStart(clickedBtn, card) {
             console.error("롤백 실패 (구독 취소):", rollbackError);
         }
         clickedBtn.disabled = false;
-        clickedBtn.textContent = '🔔 알림 받고 시작';
+        clickedBtn.textContent = '🔔 세탁 시작'; // ❗️ [수정] 롤백 시 텍스트 복구
     }
 }
 
 
 /**
- * 코스 버튼 로직 (속도 개선)
+ * 코스 버튼 로직
  */
 function addCourseButtonLogic() {
     document.querySelectorAll('.course-btn').forEach(clickedBtn => {
@@ -558,7 +545,7 @@ function addCourseButtonLogic() {
 }
 
 /**
- * "완료 알림 받기" 버튼 로직 (속도 개선)
+ * "완료 알림 받기" 버튼 로직
  */
 function addNotifyMeDuringWashLogic() {
     document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
