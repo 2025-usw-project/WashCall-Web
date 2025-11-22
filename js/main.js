@@ -314,13 +314,11 @@ function renderMachines(machines) {
         const hasTimer = (timerRemaining !== null && typeof timerRemaining === 'number');
         const hasElapsed = (elapsedMinutes !== null && typeof elapsedMinutes === 'number' && elapsedMinutes >= 0);
         let totalTime = (hasTimer && hasElapsed) ? (elapsedMinutes + timerRemaining) : null;
+        const progressPercent = totalTime > 0 ? Math.round((elapsedMinutes / totalTime) * 100) : 0;
 
         const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
-        const timerDivStyle = shouldShowTimer ? '' : 'style="display: none;"';
-        const displayTotalTime = shouldShowTimer ? `약 ${totalTime}분` : '';
-        const displayElapsedTime = shouldShowTimer ? `${elapsedMinutes}분 진행` : '';
         
-        // --- 버튼 초기 상태 ---
+        // 버튼 초기 상태
         const isDisabled = isOperating;
         const isSubscribed = (machine.isusing === 1);
         
@@ -340,35 +338,82 @@ function renderMachines(machines) {
         }
         
         const scenarioB_DisabledAttr = isSubscribed ? 'disabled' : '';
-        const scenarioB_Text = isSubscribed ? '✅ 알림 등록됨' : '🔔 완료 알림 받기';
-
         const machineDisplayName = machine.machine_name || `기기 ${machine.machine_id}`;
         
-        machineDiv.innerHTML = `
-            <h3>${machineDisplayName}</h3> 
-            <div class="status-display">
-                상태: <strong id="status-${machine.machine_id}">${translateStatus(machine.status, machineType)}</strong>
-            </div>
-            
-            <div class="timer-display" ${timerDivStyle}>
-                <div class="timer-row total-time">
-                    <span>총 예상:</span>
-                    <span id="timer-total-${machine.machine_id}">${displayTotalTime}</span>
-                </div>
-                <div class="timer-row">
-                    <span>진행 시간:</span>
-                    <span id="timer-elapsed-${machine.machine_id}">${displayElapsedTime}</span>
-                </div>
-            </div>
-            
-            <button class="notify-start-btn" data-machine-id="${machine.machine_id}" ${showStartButton ? '' : 'style="display: none;"'}>
-                🔔 세탁 시작
-            </button>
+        // 진행 상황 텍스트 (상태별)
+        let progressLabel = '진행 상황';
+        if (machine.status === 'WASHING') progressLabel = '세탁 진행 상황';
+        else if (machine.status === 'SPINNING') progressLabel = '탈수 진행 상황';
+        else if (machine.status === 'DRYING') progressLabel = '건조 진행 상황';
 
-            <button class="notify-me-during-wash-btn" data-machine-id="${machine.machine_id}" ${showScenario_B ? '' : 'style="display: none;"'} ${scenarioB_DisabledAttr}>
-                ${scenarioB_Text}
-            </button>
+        // 새로운 Glassmorphism 디자인
+        machineDiv.innerHTML = `
+            <!-- 상태 아이콘 & 타입 -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="text-3xl ${statusConfig.animation}">${statusConfig.icon}</div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">${machineDisplayName}</h3>
+                        <span class="badge badge-${machine.status.toLowerCase()} text-xs">${translateStatus(machine.status, machineType)}</span>
+                    </div>
+                </div>
+                <div class="text-2xl">${machineType === 'dryer' ? '🌀' : '🫧'}</div>
+            </div>
+            
+            <!-- 프로그레스 바 (작동 중일 때만) -->
+            ${shouldShowTimer ? `
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-gray-600 dark:text-white">${progressLabel}</span>
+                        <span class="font-semibold ${statusConfig.textColor}">${elapsedMinutes}분</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" style="width: ${progressPercent}%; background: ${statusConfig.gradient}"></div>
+                    </div>
+                </div>
+                
+                <!-- 타이머 정보 -->
+                <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">총 예상 시간</span>
+                        <span id="timer-total-${machine.machine_id}" class="text-lg font-bold text-gray-900 dark:text-white">약 ${totalTime}분</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">진행 시간</span>
+                        <span id="timer-elapsed-${machine.machine_id}" class="text-sm font-semibold ${statusConfig.textColor}">${elapsedMinutes}분 진행</span>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- 버튼 -->
+            ${showStartButton ? `
+                <button class="notify-start-btn btn btn-primary w-full" data-machine-id="${machine.machine_id}">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    세탁 시작
+                </button>
+            ` : ''}
+            
+            ${showScenario_B ? `
+                <button class="notify-me-during-wash-btn btn ${isSubscribed ? 'btn-secondary cursor-not-allowed' : 'btn-ghost'} w-full" 
+                        data-machine-id="${machine.machine_id}" 
+                        ${scenarioB_DisabledAttr}>
+                    ${isSubscribed ? `
+                        <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        알림 등록됨
+                    ` : `
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        완료 알림 받기
+                    `}
+                </button>
+            ` : ''}
         `;
+        
         container.appendChild(machineDiv);
     });
 
