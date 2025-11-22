@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+css/output.css
+css/output.css.map
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
