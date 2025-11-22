@@ -81,14 +81,68 @@ async function startChartDrawing() {
                 y: {
                     beginAtZero: true, 
                     ticks: {
-                        stepSize: 1 
+                        stepSize: 1,
+                        color: 'rgba(107, 114, 128, 1)',
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(229, 231, 235, 0.5)',
+                        drawBorder: false
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: 'rgba(107, 114, 128, 1)',
+                        font: {
+                            size: 12,
+                            weight: '500'
+                        }
+                    },
+                    grid: {
+                        display: false
                     }
                 }
             },
             responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
             plugins: {
                 legend: {
+                    display: true,
                     position: 'top',
+                    labels: {
+                        color: 'rgba(55, 65, 81, 1)',
+                        font: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        padding: 15,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
+                    titleColor: 'rgba(255, 255, 255, 1)',
+                    bodyColor: 'rgba(229, 231, 235, 1)',
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    borderWidth: 2,
+                    padding: 12,
+                    cornerRadius: 8,
+                    displayColors: false,
+                    titleFont: {
+                        size: 14,
+                        weight: '600'
+                    },
+                    bodyFont: {
+                        size: 13
+                    }
                 }
             }
         }
@@ -99,10 +153,15 @@ async function startChartDrawing() {
         button.addEventListener('click', (event) => {
             const selectedDay = event.target.dataset.day;
             
+            // 모든 버튼에서 활성화 스타일 제거
             document.querySelectorAll('.day-btn').forEach(btn => {
-                btn.classList.remove('active');
+                btn.classList.remove('bg-primary-600', 'text-white', 'shadow-lg', 'shadow-primary-600/30');
+                btn.classList.add('bg-white/50', 'dark:bg-gray-800/50', 'text-gray-700', 'dark:text-gray-300', 'border', 'border-gray-200', 'dark:border-gray-700');
             });
-            event.target.classList.add('active');
+            
+            // 클릭된 버튼에 활성화 스타일 추가
+            event.target.classList.remove('bg-white/50', 'dark:bg-gray-800/50', 'text-gray-700', 'dark:text-gray-300', 'border', 'border-gray-200', 'dark:border-gray-700');
+            event.target.classList.add('bg-primary-600', 'text-white', 'shadow-lg', 'shadow-primary-600/30');
 
             updateChart(selectedDay, congestionData);
         });
@@ -112,8 +171,27 @@ async function startChartDrawing() {
 function updateChart(day, congestionData) { 
     const newData = congestionData[day].slice(9, 22);
     
+    // 새 데이터의 최대값과 최소값 찾기
+    const maxValue = Math.max(...newData);
+    const minValue = Math.min(...newData);
+    
+    // 각 점의 색상 다시 결정
+    const pointBackgroundColors = newData.map(value => {
+        if (value === maxValue) return 'rgba(239, 68, 68, 1)'; // 빨간색 (최대값)
+        if (value === minValue) return 'rgba(34, 197, 94, 1)'; // 초록색 (최소값)
+        return 'rgba(139, 92, 246, 1)'; // 보라색 (일반)
+    });
+    
+    const pointBorderColors = newData.map(value => {
+        if (value === maxValue) return 'rgba(220, 38, 38, 1)';
+        if (value === minValue) return 'rgba(22, 163, 74, 1)';
+        return 'rgba(124, 58, 237, 1)';
+    });
+    
     myChart.data.datasets[0].label = `${day}요일 평균 사용 대수`;
     myChart.data.datasets[0].data = newData;
+    myChart.data.datasets[0].pointBackgroundColor = pointBackgroundColors;
+    myChart.data.datasets[0].pointBorderColor = pointBorderColors;
     
     myChart.update();
 }
