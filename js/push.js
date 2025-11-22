@@ -133,28 +133,37 @@ async function onMasterSubscribeToggle() {
 }
 
 async function turnOffAllIndividualToggles() {
-    const subscribedB_buttons = document.querySelectorAll('.notify-me-during-wash-btn:disabled');
-    // const subscribedA_buttons = ... (모달 방식이라 생략 가능)
-
     const tasks = [];
     const uniqueMachineIds = new Set();
+    let turnedOffCount = 0;
 
-    for (const btn of subscribedB_buttons) {
-        if (btn.textContent.includes('✅ 알림 등록됨')) {
-            btn.disabled = false;
-            btn.textContent = '🔔 완료 알림 받기'; 
+    // 모든 machine-card에서 구독 상태 확인
+    document.querySelectorAll('[id^="machine-"]').forEach(card => {
+        if (card.dataset.isSubscribed === 'true') {
+            const machineId = parseInt(card.id.replace('machine-', ''), 10);
             
-            const machineId = parseInt(btn.dataset.machineId, 10);
             if (machineId && !uniqueMachineIds.has(machineId)) {
+                // 카드의 구독 상태 제거
+                delete card.dataset.isSubscribed;
+                
+                // API 호출 추가
                 tasks.push(api.toggleNotifyMe(machineId, false));
                 uniqueMachineIds.add(machineId);
+                turnedOffCount++;
             }
         }
-    }
+    });
     
     if (tasks.length === 0) return 0;
     await Promise.all(tasks);
-    return tasks.length; 
+    
+    // UI 업데이트: 모든 카드 재렌더링
+    const machines = await api.getInitialMachines();
+    if (typeof renderMachines === 'function') {
+        renderMachines(machines);
+    }
+    
+    return turnedOffCount;
 }
 
 async function subscribeAllMachinesAPI(toggles, shouldBeOn) {
