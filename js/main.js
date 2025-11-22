@@ -746,49 +746,6 @@ async function handleDryerStart(clickedBtn, card) {
     }
 }
 
-function addNotifyMeDuringWashLogic() {
-    document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
-        button.addEventListener('click', async (event) => {
-            const btn = event.target;
-            const machineId = parseInt(btn.dataset.machineId, 10);
-            // 버튼이 있는 카드를 찾음
-            const card = btn.closest('.machine-card');
-
-            btn.disabled = true;
-            btn.textContent = "요청 중...";
-
-            try {
-                const tokenOrStatus = await requestPermissionAndGetToken();
-                if (tokenOrStatus === 'denied') throw new Error("알림 차단됨");
-                if (tokenOrStatus === null) throw new Error("알림 거부됨");
-                
-                const token = tokenOrStatus;
-
-                await Promise.all([
-                    api.registerPushToken(token),
-                    api.toggleNotifyMe(machineId, true)
-                ]);
-                
-                // ❗️ [핵심] 로컬 상태 기록
-                if (card) card.dataset.isSubscribed = 'true';
-
-                btn.textContent = '✅ 알림 등록됨';
-                
-                setTimeout(() => {
-                    alert('완료 알림이 등록되었습니다.');
-                }, 50);
-
-            } catch (error) {
-                console.error("API 오류:", error);
-                alert(`알림 등록 실패: ${error.message}`);
-                if (card) delete card.dataset.isSubscribed;
-                btn.disabled = false;
-                btn.textContent = '🔔 완료 알림 받기';
-            }
-        });
-    });
-}
-
 function translateStatus(status, machineType = 'washer') {
     switch (status) {
         case 'WASHING': return '세탁 중';
