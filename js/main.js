@@ -421,6 +421,49 @@ function renderMachines(machines) {
     addNotifyMeDuringWashLogic(); 
 }
 
+// 상태별 설정 헬퍼 함수
+function getStatusConfig(status) {
+    const configs = {
+        'OFF': {
+            icon: '⏸️',
+            borderColor: '#94a3b8',
+            textColor: 'text-gray-500',
+            gradient: 'linear-gradient(90deg, #94a3b8 0%, #cbd5e1 100%)',
+            animation: ''
+        },
+        'WASHING': {
+            icon: '🫧',
+            borderColor: '#3b82f6',
+            textColor: 'text-blue-600 dark:text-blue-400',
+            gradient: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)',
+            animation: 'animate-pulse-slow'
+        },
+        'SPINNING': {
+            icon: '🌀',
+            borderColor: '#f59e0b',
+            textColor: 'text-amber-600 dark:text-amber-400',
+            gradient: 'linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)',
+            animation: 'animate-shake'
+        },
+        'DRYING': {
+            icon: '🔥',
+            borderColor: '#ef4444',
+            textColor: 'text-red-600 dark:text-red-400',
+            gradient: 'linear-gradient(90deg, #ef4444 0%, #f87171 100%)',
+            animation: 'animate-shake'
+        },
+        'FINISHED': {
+            icon: '✅',
+            borderColor: '#10b981',
+            textColor: 'text-green-600 dark:text-green-400',
+            gradient: 'linear-gradient(90deg, #10b981 0%, #34d399 100%)',
+            animation: 'animate-bounce-slow'
+        }
+    };
+    
+    return configs[status] || configs['OFF'];
+}
+
 // 모달 이벤트 설정
 function setupModalEvents() {
     const modal = document.getElementById('course-modal');
