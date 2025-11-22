@@ -36,18 +36,19 @@ async function main() {
 
 async function loadCongestionTip() {
     const tipContainer = document.getElementById('congestion-tip-container');
+    const tipTextElement = document.getElementById('congestion-tip-text');
     if (!tipContainer) return;
     try {
         const tipText = await api.getCongestionTip(); 
-        if (tipText) {
-            tipContainer.textContent = tipText; 
-            tipContainer.style.display = 'flex'; 
+        if (tipText && tipTextElement) {
+            tipTextElement.textContent = tipText; 
+            tipContainer.classList.remove('hidden');
         } else {
-            tipContainer.style.display = 'none'; 
+            tipContainer.classList.add('hidden');
         }
     } catch (error) {
         console.warn("혼잡도 팁을 불러오는 데 실패했습니다:", error);
-        tipContainer.style.display = 'none';
+        tipContainer.classList.add('hidden');
     }
 }
 
@@ -70,28 +71,48 @@ function tryConnect() {
 }
 
 function updateConnectionStatus(status) {
-    if (!connectionStatusElement) return;
-    connectionStatusElement.className = 'status-alert';
+    // 토스트 스타일 알림 생성
+    let message = '';
+    let iconColor = '';
+    let bgColor = '';
+    
     switch (status) {
         case 'connecting':
-            connectionStatusElement.classList.add('info');
-            connectionStatusElement.textContent = '서버와 연결을 시도 중...';
-            connectionStatusElement.style.opacity = 1;
-            break;
+            return; // 연결 시도 중일 때는 토스트 안 띄움
         case 'success':
-            connectionStatusElement.classList.add('success');
-            connectionStatusElement.textContent = '✅ 서버 연결 성공! 실시간 업데이트 중.';
-            connectionStatusElement.style.opacity = 1;
-            setTimeout(() => {
-                connectionStatusElement.style.opacity = 0;
-            }, 3000);
+            message = '✅ 서버 연결 성공!';
+            iconColor = 'text-green-500';
+            bgColor = 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800';
             break;
         case 'error':
-            connectionStatusElement.classList.add('error');
-            connectionStatusElement.textContent = '❌ 서버와의 연결이 끊어졌습니다. 5초 후 재연결 시도...';
-            connectionStatusElement.style.opacity = 1;
+            message = '❌ 서버 연결 실패';
+            iconColor = 'text-red-500';
+            bgColor = 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
             break;
+        default:
+            return;
     }
+    
+    // 토스트 엘리먼트 생성
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-20 left-1/2 transform -translate-x-1/2 z-[70] px-6 py-3 rounded-xl border ${bgColor} shadow-lg animate-slide-up`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span class="${iconColor} text-lg">${message.startsWith('✅') ? '✅' : '❌'}</span>
+            <span class="text-sm font-medium text-gray-900 dark:text-white">${message.replace(/[✅❌]\s/, '')}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // 3초 후 제거 (성공), 5초 후 제거 (실패)
+    const duration = status === 'success' ? 3000 : 5000;
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translate(-50%, 20px)';
+        toast.style.transition = 'all 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
 }
 
 async function handleSocketMessage(event) {
