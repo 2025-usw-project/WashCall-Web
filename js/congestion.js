@@ -39,18 +39,41 @@ async function startChartDrawing() {
     // const isMobile = window.innerWidth <= 768;
     const chartType = 'line'; // isMobile ? 'line' : 'bar';
 
+    // 데이터에서 최대값과 최소값 찾기
+    const maxValue = Math.max(...initialData);
+    const minValue = Math.min(...initialData);
+    
+    // 각 점의 색상 결정
+    const pointBackgroundColors = initialData.map(value => {
+        if (value === maxValue) return 'rgba(239, 68, 68, 1)'; // 빨간색 (최대값)
+        if (value === minValue) return 'rgba(34, 197, 94, 1)'; // 초록색 (최소값)
+        return 'rgba(139, 92, 246, 1)'; // 보라색 (일반)
+    });
+    
+    const pointBorderColors = initialData.map(value => {
+        if (value === maxValue) return 'rgba(220, 38, 38, 1)';
+        if (value === minValue) return 'rgba(22, 163, 74, 1)';
+        return 'rgba(124, 58, 237, 1)';
+    });
+
     myChart = new Chart(ctx, { 
-        type: chartType, // ❗️ 항상 'line' 사용
+        type: chartType,
         data: {
             labels: labels,
             datasets: [{
                 label: `${initialDay}요일 평균 사용 대수`, 
                 data: initialData, 
-                backgroundColor: 'rgba(0, 123, 255, 0.5)',
-                borderColor: 'rgba(0, 123, 255, 1)',
-                borderWidth: 1,
-                fill: true, // ❗️ 선 그래프이므로 fill을 true로 설정
-                tension: 0.1 
+                backgroundColor: 'rgba(139, 92, 246, 0.1)', // 연한 보라색 그라디언트
+                borderColor: 'rgba(139, 92, 246, 1)', // 보라색 선
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4, // 더 부드러운 곡선
+                pointRadius: 6, // 점 크기
+                pointHoverRadius: 8, // 호버 시 점 크기
+                pointBackgroundColor: pointBackgroundColors,
+                pointBorderColor: pointBorderColors,
+                pointBorderWidth: 2,
+                pointHoverBorderWidth: 3
             }]
         },
         options: { 
