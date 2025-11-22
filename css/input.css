@@ -1,0 +1,14 @@
+/* ===== Tailwind CSS Input File ===== */
+
+/* Tailwind의 기본 레이어 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 커스텀 CSS 파일들 임포트 */
+@import './variables.css';
+@import './fonts.css';
+@import './base.css';
+@import './components.css';
+@import './animations.css';
+@import './utilities.css';
