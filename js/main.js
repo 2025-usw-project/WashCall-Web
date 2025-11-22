@@ -286,22 +286,27 @@ function renderMachines(machines) {
     if (!container) return;
     container.innerHTML = '';
 
-    machines.forEach(machine => {
+    machines.forEach((machine, index) => {
         const machineDiv = document.createElement('div');
         const machineType = machine.machine_type || 'washer'; 
         
-        machineDiv.className = 'machine-card';
-        machineDiv.classList.add(`status-${machine.status.toLowerCase()}`);
+        // 상태별 색상 및 아이콘
+        const statusConfig = getStatusConfig(machine.status);
+        
+        // 기본 클래스 (Glassmorphism 카드)
+        machineDiv.className = 'glass-card rounded-2xl p-6 border-2 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-slide-up';
+        machineDiv.classList.add(`stagger-${Math.min(index + 1, 5)}`);
         machineDiv.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer');
+        machineDiv.style.borderColor = statusConfig.borderColor;
         machineDiv.dataset.machineType = machineType; 
         machineDiv.id = `machine-${machine.machine_id}`; 
         
-        // ❗️ [초기화] 서버에서 받은 구독 정보 저장
+        // 서버에서 받은 구독 정보 저장
         if (machine.isusing === 1) {
             machineDiv.dataset.isSubscribed = 'true';
         }
 
-        // --- 타이머 계산 ---
+        // 타이머 계산
         const isOperating = (machine.status === 'WASHING' || machine.status === 'SPINNING' || machine.status === 'DRYING');
         const timerRemaining = machine.timer; 
         const elapsedMinutes = machine.elapsed_time_minutes;
