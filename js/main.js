@@ -499,11 +499,11 @@ function setupModalEvents() {
 function addNotifyStartLogic() {
     document.querySelectorAll('.notify-start-btn').forEach(button => {
         button.addEventListener('click', (event) => {
-            const btn = event.target;
-            const card = btn.closest('.machine-card');
+            const btn = event.currentTarget; // currentTarget 사용
+            const machineId = parseInt(btn.dataset.machineId, 10);
+            const card = document.getElementById(`machine-${machineId}`);
             if (!card) return;
 
-            const machineId = parseInt(btn.dataset.machineId, 10);
             const machineType = card.dataset.machineType || 'washer';
             
             if (machineType === 'washer') {
