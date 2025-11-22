@@ -155,95 +155,130 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     if (!card) return; 
 
     const machineType = card.dataset.machineType || 'washer';
+    const machineDisplayName = card.querySelector('h3')?.textContent || `기기 ${machineId}`;
 
-    card.className = 'machine-card'; 
-    card.classList.add(machineType === 'dryer' ? 'machine-type-dryer' : 'machine-type-washer'); 
-    card.classList.add(`status-${newStatus.toLowerCase()}`); 
+    // 상태별 설정
+    const statusConfig = getStatusConfig(newStatus);
+    card.style.borderColor = statusConfig.borderColor;
 
-    const statusStrong = card.querySelector('.status-display strong');
-    if (statusStrong) {
-        statusStrong.textContent = translateStatus(newStatus, machineType);
+    // SPINNING 상태일 때 카드에 흔들림 애니메이션 추가
+    if (newStatus === 'SPINNING') {
+        card.classList.add('animate-shake');
+    } else {
+        card.classList.remove('animate-shake');
     }
 
-    // --- 타이머 로직 ---
-    const timerDiv = card.querySelector('.timer-display');
-    const timerTotalSpan = card.querySelector(`#timer-total-${machineId}`);
-    const timerElapsedSpan = card.querySelector(`#timer-elapsed-${machineId}`);
-
-    const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
-
-    const hasTimer = (newTimer !== null && typeof newTimer === 'number');
-    const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
-    let totalTime = (hasTimer && hasElapsed) ? (newElapsedMinutes + newTimer) : null;
-
-    const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
-
-    if (shouldShowTimer && timerDiv && timerTotalSpan && timerElapsedSpan) {
-        timerDiv.style.display = 'block';
-        timerTotalSpan.textContent = `약 ${totalTime}분`;
-        
-        let elapsedText = `${newElapsedMinutes}분 진행`;
-        if (newStatus === 'SPINNING' && newElapsedMinutes === 0) {
-            elapsedText = `0분 진행 (탈수)`;
-        }
-        timerElapsedSpan.textContent = elapsedText;
-
-    } else if (timerDiv) {
-        timerDiv.style.display = 'none';
-    }
-
-    const shouldBeDisabled = isOperating;
-    
-    const startButton = card.querySelector('.notify-start-btn');
-    const courseButtonsDiv = card.querySelector('.course-buttons'); // (모달 방식이라 사용 안 할 수도 있지만 유지)
-    const notifyMeButton = card.querySelector('.notify-me-during-wash-btn');
-
-    // ❗️ [핵심 수정] 구독 상태 결정 로직 강화
+    // 구독 상태 결정
     let finalIsSubscribed = false;
-
     if (isSubscribed === true) {
-        // 1. 서버가 "구독 중"이라고 명시함 -> 로컬에도 저장
         finalIsSubscribed = true;
         card.dataset.isSubscribed = 'true';
     } else if (isSubscribed === false) {
-        // 2. 서버가 "구독 안 함"이라고 명시함 -> 로컬 삭제
         finalIsSubscribed = false;
         delete card.dataset.isSubscribed;
     } else {
-        // 3. 서버가 정보를 안 줌(null) -> 로컬 저장소(dataset) 확인 (UI 보호)
-        if (card.dataset.isSubscribed === 'true') {
-            finalIsSubscribed = true;
+        finalIsSubscribed = (card.dataset.isSubscribed === 'true');
+    }
+
+    // 타이머 계산
+    const isOperating = (newStatus === 'WASHING' || newStatus === 'SPINNING' || newStatus === 'DRYING');
+    const hasTimer = (newTimer !== null && typeof newTimer === 'number');
+    const hasElapsed = (newElapsedMinutes !== null && typeof newElapsedMinutes === 'number' && newElapsedMinutes >= 0);
+    let totalTime = (hasTimer && hasElapsed) ? (newElapsedMinutes + newTimer) : null;
+    const progressPercent = totalTime > 0 ? Math.round((newElapsedMinutes / totalTime) * 100) : 0;
+    const shouldShowTimer = isOperating && (totalTime !== null && totalTime > 0);
+
+    // 버튼 표시 로직
+    let showStartButton = false;
+    let showScenario_B = false;
+    
+    if (finalIsSubscribed) {
+        showScenario_B = true;
+    } else {
+        if (isOperating) {
+            showScenario_B = true;
         } else {
-            finalIsSubscribed = false;
+            showStartButton = true;
         }
     }
 
-    // --- 버튼 표시 로직 (finalIsSubscribed 사용) ---
-    if (finalIsSubscribed) {
-        // [구독 중]
-        if (startButton) startButton.style.display = 'none'; 
-        if (courseButtonsDiv) courseButtonsDiv.style.display = 'none'; 
-        if (notifyMeButton) {
-            notifyMeButton.style.display = 'block'; 
-            notifyMeButton.textContent = '✅ 알림 등록됨';
-            notifyMeButton.disabled = true;
-        }
-    } else {
-        // [구독 안 함]
-        if (shouldBeDisabled) {
-             // 작동 중 -> 완료 알림 받기 버튼
-             if (startButton) startButton.style.display = 'none';
-             if (notifyMeButton) {
-                notifyMeButton.style.display = 'block';
-                notifyMeButton.textContent = '🔔 완료 알림 받기';
-                notifyMeButton.disabled = false;
-             }
-        } else {
-            // 대기 중 -> 세탁 시작 버튼
-            if (notifyMeButton) notifyMeButton.style.display = 'none';
-            if (startButton) startButton.style.display = 'block';
-        }
-    }
+    // 진행 상황 텍스트 (상태별)
+    let progressLabel = '진행 상황';
+    if (newStatus === 'WASHING') progressLabel = '세탁 진행 상황';
+    else if (newStatus === 'SPINNING') progressLabel = '탈수 진행 상황';
+    else if (newStatus === 'DRYING') progressLabel = '건조 진행 상황';
+
+    // 카드 내용 전체 재렌더링
+    card.innerHTML = `
+        <!-- 상태 아이콘 & 타입 -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="text-3xl ${statusConfig.animation}">${statusConfig.icon}</div>
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">${machineDisplayName}</h3>
+                    <span class="badge badge-${newStatus.toLowerCase()} text-xs">${translateStatus(newStatus, machineType)}</span>
+                </div>
+            </div>
+            <div class="text-2xl">${machineType === 'dryer' ? '🌀' : '🫧'}</div>
+        </div>
+        
+        <!-- 프로그레스 바 (작동 중일 때만) -->
+        ${shouldShowTimer ? `
+            <div class="mb-4">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="text-gray-600 dark:text-white">${progressLabel}</span>
+                    <span class="font-semibold ${statusConfig.textColor}">${newElapsedMinutes}분</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: ${progressPercent}%; background: ${statusConfig.gradient}"></div>
+                </div>
+            </div>
+            
+            <!-- 타이머 정보 -->
+            <div class="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 mb-4">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">총 예상 시간</span>
+                    <span id="timer-total-${machineId}" class="text-lg font-bold text-gray-900 dark:text-white">약 ${totalTime}분</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">진행 시간</span>
+                    <span id="timer-elapsed-${machineId}" class="text-sm font-semibold ${statusConfig.textColor}">${newElapsedMinutes}분 진행</span>
+                </div>
+            </div>
+        ` : ''}
+        
+        <!-- 버튼 -->
+        ${showStartButton ? `
+            <button class="notify-start-btn btn btn-primary w-full" data-machine-id="${machineId}">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                세탁 시작
+            </button>
+        ` : ''}
+        
+        ${showScenario_B ? `
+            <button class="notify-me-during-wash-btn btn ${finalIsSubscribed ? 'btn-secondary cursor-not-allowed' : 'btn-ghost'} w-full" 
+                    data-machine-id="${machineId}" 
+                    ${finalIsSubscribed ? 'disabled' : ''}>
+                ${finalIsSubscribed ? `
+                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    알림 등록됨
+                ` : `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                    </svg>
+                    완료 알림 받기
+                `}
+            </button>
+        ` : ''}
+    `;
+    
+    // 이벤트 리스너 재등록
+    addNotifyStartLogic();
+    addNotifyMeDuringWashLogic();
 }
 
 function renderMachines(machines) {
