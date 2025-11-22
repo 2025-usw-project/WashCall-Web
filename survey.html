@@ -5,248 +5,257 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WashCall - 설문조사</title>
     
-    <link rel="stylesheet" href="css/style.css">
+    <!-- PWA Meta -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
     <link rel="icon" href="favicon.png" type="image/png">
     
-    <style>
-        .survey-form {
-            background-color: var(--bg-secondary-color);
-            padding: 24px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            box-shadow: var(--card-shadow);
-        }
-        .form-group {
-            margin-bottom: 25px;
-        }
-        .form-group label.question-title { /* 질문 제목 */
-            display: block;
-            margin-bottom: 12px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--text-color);
-        }
-
-        /* --- ❗️ [신규] 탭(버튼) 스타일 --- */
-        .radio-group {
-            display: grid;
-            /* 5개 버튼을 화면 크기에 맞춰 유연하게 배치 */
-            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-            gap: 8px;
-            border-radius: 8px;
-            overflow: hidden; /* 모서리 */
-            border: 1px solid var(--border-color);
-        }
-        
-        .radio-group input[type="radio"] {
-            /* 라디오 버튼 숨기기 */
-            display: none;
-        }
-
-        .radio-group label {
-            /* 텍스트/버튼 스타일 */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 12px 10px;
-            
-            font-weight: 500;
-            font-size: 0.95rem;
-            color: var(--text-secondary-color);
-            
-            background-color: var(--bg-secondary-color);
-            border-left: 1px solid var(--border-color);
-            
-            cursor: pointer;
-            transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
-            text-align: center;
-            white-space: nowrap;
-        }
-        
-        .radio-group label:first-of-type {
-             /* 맨 왼쪽 버튼 테두리 제거 */
-            border-left: none;
-        }
-
-        .radio-group label:hover {
-            background-color: var(--bg-color);
-        }
-
-        /* ❗️ [핵심] 선택된(checked) 라벨 스타일 */
-        .radio-group input[type="radio"]:checked + label {
-            background-color: var(--primary-color); /* (파란색) */
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 0 10px rgba(0,100,255, 0.3); /* 은은한 효과 */
-            border-color: var(--primary-color);
-        }
-        
-        /* 텍스트 입력 필드 (기존과 유사) */
-        .form-group input[type="text"],
-        .form-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            border-radius: 5px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            min-height: 120px;
-            resize: vertical;
-        }
-        .form-group input[type="text"] {
-             min-height: auto;
-        }
-        
-        /* 제출 버튼 (기존과 동일) */
-        .submit-btn {
-            padding: 12px 20px;
-            font-size: 1rem;
-            font-weight: 600;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .submit-btn:hover {
-             background-color: var(--primary-hover-color);
-        }
-    </style>
+    <!-- 새로운 CSS (Tailwind + Custom) -->
+    <link rel="stylesheet" href="css/output.css">
 </head>
-<body>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-300">
 
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">WashCall</a>
+    <!-- ===== 상단 로고 바 ===== -->
+    <header class="sticky top-0 z-50 glass-effect border-b border-white/20">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="flex items-center justify-center h-16">
+                <a href="index.html" class="text-2xl font-bold gradient-text hover:opacity-80 transition-opacity">
+                    WashCall
+                </a>
+            </div>
+        </div>
+    </header>
 
-        <button class="navbar-toggle" id="navbarToggle">
-            &#9776; </button>
-        
-        <ul class="navbar-nav" id="navbarMenu">
-            <li><a href="index.html">실시간 현황</a></li>
-            <li><a href="congestion.html">혼잡도 분석</a></li>
-            <li><a href="survey.html">설문조사</a></li>
-            <li><a href="#" id="logout-button">로그아웃</a></li>
+    <!-- ===== 우측 상단 다크모드 버튼 (플로팅) ===== -->
+    <button id="theme-toggle-btn" class="fixed top-20 right-4 z-50 glass-card rounded-full p-3 border border-white/20 hover:scale-110 transition-transform shadow-lg">
+        <svg id="theme-icon-light" class="w-6 h-6 text-gray-900 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+        <svg id="theme-icon-dark" class="w-6 h-6 text-white hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+        </svg>
+    </button>
+
+    <!-- ===== 하단 네비게이션 바 (모바일 친화) ===== -->
+    <nav class="fixed bottom-0 left-0 right-0 z-50 glass-effect border-t border-white/20 pb-safe">
+        <div class="grid grid-cols-4 h-16">
+            <a href="index.html" class="flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white/10 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <span class="text-xs font-medium">실시간</span>
+            </a>
             
-            <li class="theme-switch-wrapper">
-                <label class="theme-switch" for="theme-checkbox">
-                    <input type="checkbox" id="theme-checkbox" />
-                    <span class="theme-slider"></span>
-                </label>
-            </li>
-        </ul>
+            <a href="congestion.html" class="flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-white/10 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <span class="text-xs font-medium">혼잡도</span>
+            </a>
+            
+            <a href="survey.html" class="flex flex-col items-center justify-center gap-1 text-primary-600 dark:text-primary-400 hover:bg-white/10 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span class="text-xs font-medium">설문</span>
+            </a>
+            
+            <button id="logout-button" class="flex flex-col items-center justify-center gap-1 text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/10 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span class="text-xs font-medium">로그아웃</span>
+            </button>
+        </div>
     </nav>
 
-    <main class="container">
+    <!-- ===== 메인 콘텐츠 ===== -->
+    <main class="container mx-auto px-4 lg:px-8 py-8 lg:py-12 pb-24 max-w-4xl">
         
-        <header class="main-header">
-            <h2>서비스 사용성 평가</h2>
-            <p>WashCall의 핵심 기능은 어떠셨나요? 서비스 개선을 위해 구체적인 피드백을 남겨주세요.</p>
+        <!-- 페이지 헤더 -->
+        <header class="text-center mb-8 lg:mb-12 animate-fade-in">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                </svg>
+                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">
+                    서비스 사용성 평가
+                </h1>
+            </div>
+            <p class="text-base lg:text-lg text-gray-600 dark:text-gray-300">
+                WashCall의 핵심 기능은 어떠셨나요? 서비스 개선을 위해 구체적인 피드백을 남겨주세요
+            </p>
         </header>
 
-        <form id="survey-form" class="survey-form">
+        <!-- 설문 폼 -->
+        <form id="survey-form" class="glass-card rounded-3xl p-6 lg:p-8 border border-white/20 animate-slide-up space-y-8">
             
-            <div class="form-group">
-                <label class="question-title">1. [핵심 기능] 실시간 현황(상태)이 얼마나 정확했나요?</label>
-                <div class="radio-group">
-                    <input type="radio" name="status_accuracy" id="s1-5" value="5" required>
-                    <label for="s1-5">매우 정확</label>
+            <!-- 질문 1 -->
+            <div class="space-y-4">
+                <label class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    1. [핵심 기능] 실시간 현황(상태)이 얼마나 정확했나요?
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <input type="radio" name="status_accuracy" id="s1-5" value="5" required class="sr-only peer/s1-5">
+                    <label for="s1-5" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s1-5:bg-primary-600 peer-checked/s1-5:border-primary-600 peer-checked/s1-5:text-white peer-checked/s1-5:shadow-lg">
+                        매우 정확
+                    </label>
                     
-                    <input type="radio" name="status_accuracy" id="s1-4" value="4">
-                    <label for="s1-4">대체로 정확</label>
+                    <input type="radio" name="status_accuracy" id="s1-4" value="4" class="sr-only peer/s1-4">
+                    <label for="s1-4" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s1-4:bg-primary-600 peer-checked/s1-4:border-primary-600 peer-checked/s1-4:text-white peer-checked/s1-4:shadow-lg">
+                        대체로 정확
+                    </label>
                     
-                    <input type="radio" name="status_accuracy" id="s1-3" value="3">
-                    <label for="s1-3">보통</label>
+                    <input type="radio" name="status_accuracy" id="s1-3" value="3" class="sr-only peer/s1-3">
+                    <label for="s1-3" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s1-3:bg-primary-600 peer-checked/s1-3:border-primary-600 peer-checked/s1-3:text-white peer-checked/s1-3:shadow-lg">
+                        보통
+                    </label>
                     
-                    <input type="radio" name="status_accuracy" id="s1-2" value="2">
-                    <label for="s1-2">가끔 틀림</label>
+                    <input type="radio" name="status_accuracy" id="s1-2" value="2" class="sr-only peer/s1-2">
+                    <label for="s1-2" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s1-2:bg-primary-600 peer-checked/s1-2:border-primary-600 peer-checked/s1-2:text-white peer-checked/s1-2:shadow-lg">
+                        가끔 틀림
+                    </label>
                     
-                    <input type="radio" name="status_accuracy" id="s1-1" value="1">
-                    <label for="s1-1">자주 틀림</label>
+                    <input type="radio" name="status_accuracy" id="s1-1" value="1" class="sr-only peer/s1-1">
+                    <label for="s1-1" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s1-1:bg-primary-600 peer-checked/s1-1:border-primary-600 peer-checked/s1-1:text-white peer-checked/s1-1:shadow-lg">
+                        자주 틀림
+                    </label>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="question-title">2. [핵심 기능] 세탁 경과 시간이 얼마나 정확했나요?</label>
-                <div class="radio-group">
-                    <input type="radio" name="timer_accuracy" id="s2-5" value="5" required>
-                    <label for="s2-5">매우 정확</label>
-                    
-                    <input type="radio" name="timer_accuracy" id="s2-4" value="4">
-                    <label for="s2-4">대체로 정확</label>
-                    
-                    <input type="radio" name="timer_accuracy" id="s2-3" value="3">
-                    <label for="s2-3">보통</label>
-                    
-                    <input type="radio" name="timer_accuracy" id="s2-2" value="2">
-                    <label for="s2-2">가끔 틀림</label>
-                    
-                    <input type="radio" name="timer_accuracy" id="s2-1" value="1">
-                    <label for="s2-1">자주 틀림</label>
+            <!-- 질문 2 -->
+            <div class="space-y-4">
+                <label class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    2. [핵심 기능] 세탁 경과 시간이 얼마나 정확했나요?
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <input type="radio" name="timer_accuracy" id="s2-5" value="5" required class="sr-only peer/s2-5">
+                    <label for="s2-5" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s2-5:bg-primary-600 peer-checked/s2-5:border-primary-600 peer-checked/s2-5:text-white peer-checked/s2-5:shadow-lg">
+                        매우 정확
+                    </label>
+                    <input type="radio" name="timer_accuracy" id="s2-4" value="4" class="sr-only peer/s2-4">
+                    <label for="s2-4" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s2-4:bg-primary-600 peer-checked/s2-4:border-primary-600 peer-checked/s2-4:text-white peer-checked/s2-4:shadow-lg">
+                        대체로 정확
+                    </label>
+                    <input type="radio" name="timer_accuracy" id="s2-3" value="3" class="sr-only peer/s2-3">
+                    <label for="s2-3" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s2-3:bg-primary-600 peer-checked/s2-3:border-primary-600 peer-checked/s2-3:text-white peer-checked/s2-3:shadow-lg">
+                        보통
+                    </label>
+                    <input type="radio" name="timer_accuracy" id="s2-2" value="2" class="sr-only peer/s2-2">
+                    <label for="s2-2" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s2-2:bg-primary-600 peer-checked/s2-2:border-primary-600 peer-checked/s2-2:text-white peer-checked/s2-2:shadow-lg">
+                        가끔 틀림
+                    </label>
+                    <input type="radio" name="timer_accuracy" id="s2-1" value="1" class="sr-only peer/s2-1">
+                    <label for="s2-1" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s2-1:bg-primary-600 peer-checked/s2-1:border-primary-600 peer-checked/s2-1:text-white peer-checked/s2-1:shadow-lg">
+                        자주 틀림
+                    </label>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label class="question-title">3. [핵심 기능] 세탁 완료 알림은 제때 도착했나요?</label>
-                <div class="radio-group">
-                    <input type="radio" name="timing" id="s3-5" value="5" required>
-                    <label for="s3-5">매우 잘 맞음</label>
-                    
-                    <input type="radio" name="timing" id="s3-4" value="4">
-                    <label for="s3-4">잘 맞음</label>
-                    
-                    <input type="radio" name="timing" id="s3-3" value="3">
-                    <label for="s3-3">보통</label>
-                    
-                    <input type="radio" name="timing" id="s3-2" value="2">
-                    <label for="s3-2">조금 안 맞음</label>
-                    
-                    <input type="radio" name="timing" id="s3-1" value="1">
-                    <label for="s3-1">안 옴</label>
+            <!-- 질문 3 -->
+            <div class="space-y-4">
+                <label class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    3. [핵심 기능] 세탁 완료 알림은 제때 도착했나요?
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <input type="radio" name="timing" id="s3-5" value="5" required class="sr-only peer/s3-5">
+                    <label for="s3-5" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s3-5:bg-primary-600 peer-checked/s3-5:border-primary-600 peer-checked/s3-5:text-white peer-checked/s3-5:shadow-lg">
+                        매우 잘 맞음
+                    </label>
+                    <input type="radio" name="timing" id="s3-4" value="4" class="sr-only peer/s3-4">
+                    <label for="s3-4" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s3-4:bg-primary-600 peer-checked/s3-4:border-primary-600 peer-checked/s3-4:text-white peer-checked/s3-4:shadow-lg">
+                        잘 맞음
+                    </label>
+                    <input type="radio" name="timing" id="s3-3" value="3" class="sr-only peer/s3-3">
+                    <label for="s3-3" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s3-3:bg-primary-600 peer-checked/s3-3:border-primary-600 peer-checked/s3-3:text-white peer-checked/s3-3:shadow-lg">
+                        보통
+                    </label>
+                    <input type="radio" name="timing" id="s3-2" value="2" class="sr-only peer/s3-2">
+                    <label for="s3-2" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s3-2:bg-primary-600 peer-checked/s3-2:border-primary-600 peer-checked/s3-2:text-white peer-checked/s3-2:shadow-lg">
+                        조금 안 맞음
+                    </label>
+                    <input type="radio" name="timing" id="s3-1" value="1" class="sr-only peer/s3-1">
+                    <label for="s3-1" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s3-1:bg-primary-600 peer-checked/s3-1:border-primary-600 peer-checked/s3-1:text-white peer-checked/s3-1:shadow-lg">
+                        안 옴
+                    </label>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label class="question-title" for="survey-new-feature">4. [신규 기능] 가장 필요한 추가 기능은 무엇인가요?</label>
-                <input type="text" id="survey-new-feature" name="new_feature" placeholder="예: 건조기 현황, 예약 기능, 고장 신고...">
+            <!-- 질문 4 - 텍스트 입력 -->
+            <div class="space-y-4">
+                <label for="survey-new-feature" class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    4. [신규 기능] 가장 필요한 추가 기능은 무엇인가요?
+                </label>
+                <input 
+                    type="text" 
+                    id="survey-new-feature" 
+                    name="new_feature" 
+                    placeholder="예: 건조기 현황, 예약 기능, 고장 신고..."
+                    class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                >
             </div>
 
-            <div class="form-group">
-                <label class="question-title" for="survey-suggestion">5. [정성 평가] 건의사항 및 버그 리포트</label>
-                <textarea id="survey-suggestion" name="suggestion" placeholder="자유롭게 의견을 남겨주세요..."></textarea>
+            <!-- 질문 5 - 텍스트 영역 -->
+            <div class="space-y-4">
+                <label for="survey-suggestion" class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    5. [정성 평가] 건의사항 및 버그 리포트
+                </label>
+                <textarea 
+                    id="survey-suggestion" 
+                    name="suggestion" 
+                    placeholder="자유롭게 의견을 남겨주세요..."
+                    rows="5"
+                    class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-vertical"
+                ></textarea>
             </div>
 
-            <div class="form-group">
-                <label class="question-title">6. [종합 평가] 서비스에 전반적으로 만족하십니까?</label>
-                <div class="radio-group">
-                    <input type="radio" name="satisfaction" id="s4-5" value="5" required>
-                    <label for="s4-5">매우 만족</label>
-                    
-                    <input type="radio" name="satisfaction" id="s4-4" value="4">
-                    <label for="s4-4">만족</label>
-                    
-                    <input type="radio" name="satisfaction" id="s4-3" value="3">
-                    <label for="s4-3">보통</label>
-                    
-                    <input type="radio" name="satisfaction" id="s4-2" value="2">
-                    <label for="s4-2">불만족</label>
-                    
-                    <input type="radio" name="satisfaction" id="s4-1" value="1">
-                    <label for="s4-1">매우 불만족</label>
+            <!-- 질문 6 -->
+            <div class="space-y-4">
+                <label class="block text-lg font-semibold text-gray-900 dark:text-white">
+                    6. [종합 평가] 서비스에 전반적으로 만족하십니까?
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <input type="radio" name="satisfaction" id="s4-5" value="5" required class="sr-only peer/s4-5">
+                    <label for="s4-5" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s4-5:bg-primary-600 peer-checked/s4-5:border-primary-600 peer-checked/s4-5:text-white peer-checked/s4-5:shadow-lg">
+                        매우 만족
+                    </label>
+                    <input type="radio" name="satisfaction" id="s4-4" value="4" class="sr-only peer/s4-4">
+                    <label for="s4-4" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s4-4:bg-primary-600 peer-checked/s4-4:border-primary-600 peer-checked/s4-4:text-white peer-checked/s4-4:shadow-lg">
+                        만족
+                    </label>
+                    <input type="radio" name="satisfaction" id="s4-3" value="3" class="sr-only peer/s4-3">
+                    <label for="s4-3" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s4-3:bg-primary-600 peer-checked/s4-3:border-primary-600 peer-checked/s4-3:text-white peer-checked/s4-3:shadow-lg">
+                        보통
+                    </label>
+                    <input type="radio" name="satisfaction" id="s4-2" value="2" class="sr-only peer/s4-2">
+                    <label for="s4-2" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s4-2:bg-primary-600 peer-checked/s4-2:border-primary-600 peer-checked/s4-2:text-white peer-checked/s4-2:shadow-lg">
+                        불만족
+                    </label>
+                    <input type="radio" name="satisfaction" id="s4-1" value="1" class="sr-only peer/s4-1">
+                    <label for="s4-1" class="flex items-center justify-center px-4 py-3 rounded-xl font-medium cursor-pointer transition-all border-2 border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:border-primary-400 peer-checked/s4-1:bg-primary-600 peer-checked/s4-1:border-primary-600 peer-checked/s4-1:text-white peer-checked/s4-1:shadow-lg">
+                        매우 불만족
+                    </label>
                 </div>
             </div>
             
-            <button type="submit" class="submit-btn">제출하기</button>
+            <!-- 제출 버튼 -->
+            <button type="submit" class="btn btn-primary w-full py-4 text-lg">
+                <svg class="w-6 h-6 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                제출하기
+            </button>
         </form>
 
     </main>
 
+    <!-- Scripts -->
+    <script src="js/theme.js"></script>
     <script src="js/mock-data.js"></script>
     <script src="js/server-api.js"></script> 
     <script src="js/auth.js"></script> 
     <script src="js/survey.js"></script>
     <script src="js/navbar.js"></script>
 
-    </body>
-    </html>
+</body>
+</html>
