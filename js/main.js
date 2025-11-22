@@ -604,6 +604,84 @@ async function handleCourseSelection(machineId, courseName) {
     }
 }
 
+// 완료 알림 받기 버튼 로직
+function addNotifyMeDuringWashLogic() {
+    document.querySelectorAll('.notify-me-during-wash-btn').forEach(button => {
+        button.addEventListener('click', async (event) => {
+            const btn = event.currentTarget;
+            const machineId = parseInt(btn.dataset.machineId, 10);
+            const card = document.getElementById(`machine-${machineId}`);
+            if (!card) return;
+
+            btn.disabled = true;
+            btn.textContent = "요청 중...";
+
+            try {
+                // 1. 빈자리 알림이 켜져 있으면 끄기
+                const roomSubState = localStorage.getItem('washcallRoomSubState');
+                if (roomSubState === 'true') {
+                    localStorage.setItem('washcallRoomSubState', 'false');
+                    
+                    // 빈자리 알림 버튼 UI 업데이트
+                    const masterBtn = document.getElementById('room-subscribe-button');
+                    if (masterBtn) {
+                        masterBtn.textContent = "🔔 빈자리 알림 받기";
+                        masterBtn.classList.remove('subscribed');
+                    }
+                    
+                    // 서버에 빈자리 알림 취소 요청 (모든 세탁기)
+                    const washerCards = document.querySelectorAll('.machine-type-washer');
+                    const unsubTasks = [];
+                    washerCards.forEach(c => {
+                        const mid = parseInt(c.id.replace('machine-', ''), 10);
+                        if (mid && mid !== machineId) { // 현재 클릭한 기기 제외
+                            unsubTasks.push(api.toggleNotifyMe(mid, false));
+                        }
+                    });
+                    await Promise.all(unsubTasks);
+                }
+                
+                // 2. 개별 알림 등록
+                const tokenOrStatus = await requestPermissionAndGetToken();
+                if (tokenOrStatus === 'denied') throw new Error("알림 차단됨");
+                if (tokenOrStatus === null) throw new Error("알림 거부됨");
+                
+                const token = tokenOrStatus;
+
+                await Promise.all([
+                    api.registerPushToken(token),
+                    api.toggleNotifyMe(machineId, true)
+                ]);
+                
+                // 로컬 상태 저장
+                card.dataset.isSubscribed = 'true';
+                
+                // 버튼 UI 즉시 업데이트
+                btn.classList.remove('btn-ghost');
+                btn.classList.add('btn-secondary', 'cursor-not-allowed');
+                btn.innerHTML = `
+                    <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    알림 등록됨
+                `;
+                btn.disabled = true;
+                
+                setTimeout(() => {
+                    alert('완료 알림이 등록되었습니다.\n\n빈자리 알림이 꺼졌습니다.');
+                }, 50);
+
+            } catch (error) {
+                console.error("API 오류:", error);
+                alert(`알림 등록 실패: ${error.message}`);
+                delete card.dataset.isSubscribed;
+                btn.disabled = false;
+                btn.textContent = '🔔 완료 알림 받기';
+            }
+        });
+    });
+}
+
 async function handleDryerStart(clickedBtn, card) {
     const machineId = parseInt(clickedBtn.dataset.machineId, 10);
     if (!machineId) return;
