@@ -4,79 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WashCall - 세탁실 구독</title>
-    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- PWA Meta -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
     <link rel="icon" href="favicon.png" type="image/png">
-    <style>
-        .room-list-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .room-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            background-color: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-        }
-        .room-item h3 {
-            margin: 0;
-            color: #333;
-        }
-        .subscribe-btn {
-            padding: 10px 15px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: 500;
-        }
-        .subscribe-btn:disabled {
-            background-color: #6c757d;
-        }
-    </style>
+    
+    <!-- 새로운 CSS -->
+    <link rel="stylesheet" href="css/output.css">
 </head>
-<body>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-300">
 
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">WashCall</a>
-        <button class="navbar-toggle" id="navbarToggle">
-            &#9776; 
-        </button>
-        <ul class="navbar-nav" id="navbarMenu">
-            <li><a href="index.html">실시간 현황</a></li>
-            <li><a href="congestion.html">혼잡도 분석</a></li>
-            <li><a href="survey.html">설문조사</a></li>
-            <li><a href="#" id="logout-button">로그아웃</a></li>
-            
-            <li class="theme-switch-wrapper">
-                <label class="theme-switch" for="theme-checkbox">
-                    <input type="checkbox" id="theme-checkbox" />
-                    <span class="theme-slider"></span>
-                </label>
-            </li>
-            
-        </ul>
+    <!-- ===== Glassmorphism 네비게이션 바 ===== -->
+    <nav class="sticky top-0 z-50 glass-effect border-b border-white/20">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="index.html" class="text-2xl font-bold gradient-text hover:opacity-80 transition-opacity">WashCall</a>
+                <div class="hidden md:flex items-center gap-6">
+                    <a href="index.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">실시간 현황</a>
+                    <a href="congestion.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">혼잡도 분석</a>
+                    <a href="survey.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">설문조사</a>
+                    <button id="logout-button" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors">로그아웃</button>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="theme-checkbox" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                    </label>
+                </div>
+                <button id="navbarToggle" class="md:hidden p-2 rounded-lg hover:bg-white/20 transition-colors">
+                    <svg class="w-6 h-6 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
     </nav>
 
-    <main class="container">
-        <header class="main-header">
-            <h2>세탁실 구독</h2>
-            <p>이용할 세탁실을 구독 목록에 추가하세요.</p>
+    <!-- ===== 메인 콘텐츠 ===== -->
+    <main class="container mx-auto px-4 lg:px-8 py-8 lg:py-12">
+        
+        <!-- 헤더 -->
+        <header class="text-center mb-8 lg:mb-12 animate-fade-in">
+            <div class="flex items-center justify-center gap-3 mb-3">
+                <svg class="w-10 h-10 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <h1 class="text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white">세탁실 구독</h1>
+            </div>
+            <p class="text-base lg:text-lg text-gray-600 dark:text-gray-300">이용할 세탁실을 구독 목록에 추가하세요</p>
         </header>
 
-        <div id="room-list-container">
-            <p>세탁실 목록을 불러오는 중...</p>
+        <!-- 세탁실 목록 -->
+        <div id="room-list-container" class="space-y-4">
+            <p class="text-center text-gray-600 dark:text-gray-400">세탁실 목록을 불러오는 중...</p>
         </div>
     </main>
 
+    <!-- Scripts -->
+    <script src="js/theme.js"></script>
     <script src="js/server-api.js"></script>
     <script src="js/auth.js"></script> 
     <script src="js/navbar.js"></script>
-    
     <script src="js/subscribe.js"></script> 
 </body>
 </html>
