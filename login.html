@@ -3,99 +3,230 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WashCall - 로그인</title>
-  <link rel="stylesheet" href="css/style.css">
-
+  <title>WashCall - 로그인</title>
+  
+  <!-- PWA Meta -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#8b5cf6">
   <link rel="icon" href="favicon.png" type="image/png">
+  
+  <!-- 새로운 CSS (Tailwind + Custom) -->
+  <link rel="stylesheet" href="css/output.css">
 </head>
-<body>
+<body class="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-300">
 
-    <nav class="navbar">
-        <a href="index.html" class="navbar-brand">WashCall</a>
-        <button class="navbar-toggle" id="navbarToggle">
-            &#9776; 
-        </button>
-        <ul class="navbar-nav" id="navbarMenu">
-            <li><a href="index.html">실시간 현황</a></li>
-            <li><a href="congestion.html">혼잡도 분석</a></li>
-            <li><a href="survey.html">설문조사</a></li>
-            <li><a href="#" id="logout-button">로그아웃</a></li>
-            
-            <li class="theme-switch-wrapper">
-                <label class="theme-switch" for="theme-checkbox">
-                    <input type="checkbox" id="theme-checkbox" />
-                    <span class="theme-slider"></span>
-                </label>
-            </li>
-            
-        </ul>
+    <!-- ===== Glassmorphism 네비게이션 바 ===== -->
+    <nav class="sticky top-0 z-50 glass-effect border-b border-white/20">
+        <div class="container mx-auto px-4 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- 로고 -->
+                <a href="index.html" class="text-2xl font-bold gradient-text hover:opacity-80 transition-opacity">
+                    WashCall
+                </a>
+
+                <!-- 데스크톱 메뉴 -->
+                <div class="hidden md:flex items-center gap-6">
+                    <a href="index.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                        실시간 현황
+                    </a>
+                    <a href="congestion.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                        혼잡도 분석
+                    </a>
+                    <a href="survey.html" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                        설문조사
+                    </a>
+                    <button id="logout-button" class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        로그아웃
+                    </button>
+                    
+                    <!-- 다크모드 토글 -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="theme-checkbox" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600"></div>
+                    </label>
+                </div>
+
+                <!-- 모바일 햄버거 메뉴 -->
+                <button id="navbarToggle" class="md:hidden p-2 rounded-lg hover:bg-white/20 transition-colors">
+                    <svg class="w-6 h-6 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 모바일 메뉴 -->
+        <div id="navbarMenu" class="hidden md:hidden border-t border-white/20">
+            <div class="px-4 py-4 space-y-3">
+                <a href="index.html" class="block px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    실시간 현황
+                </a>
+                <a href="congestion.html" class="block px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    혼잡도 분석
+                </a>
+                <a href="survey.html" class="block px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    설문조사
+                </a>
+                <button id="logout-button-mobile" class="w-full text-left px-4 py-2 rounded-lg text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    로그아웃
+                </button>
+            </div>
+        </div>
     </nav>
 
-  <main class="container">
+  <!-- ===== 메인 콘텐츠 ===== -->
+  <main class="container mx-auto px-4 py-12 flex items-center justify-center min-h-[calc(100vh-4rem)]">
 
-    <div class="auth-container">
+    <div class="w-full max-w-md">
+      
+      <!-- 로그인 폼 -->
+      <form id="login-form" class="glass-card rounded-3xl p-8 border border-white/20 animate-scale-in">
+        <!-- 로고/타이틀 -->
+        <div class="text-center mb-8">
+          <div class="text-4xl mb-3">🫧</div>
+          <h2 class="text-3xl font-bold gradient-text mb-2">로그인</h2>
+          <p class="text-gray-600 dark:text-gray-400 text-sm">WashCall에 오신 것을 환영합니다</p>
+        </div>
 
-      <form id="login-form" class="auth-form">
-        <h2>로그인</h2>
-
-        <p id="login-error-message" class="error-message"></p>
+        <!-- 에러 메시지 -->
+        <p id="login-error-message" class="hidden mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm"></p>
         
-        <div class="form-group">
-          <label for="login-id">학번 (아이디)</label>
-          <input type="text" id="login-id" placeholder="아이디" required>
+        <!-- 학번 입력 -->
+        <div class="mb-4">
+          <label for="login-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            학번 (아이디)
+          </label>
+          <input 
+            type="text" 
+            id="login-id" 
+            placeholder="학번을 입력하세요" 
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
         </div>
         
-        <div class="form-group">
-          <label for="login-pw">비밀번호</label>
-          <input type="password" id="login-pw" placeholder="비밀번호" required>
+        <!-- 비밀번호 입력 -->
+        <div class="mb-6">
+          <label for="login-pw" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            비밀번호
+          </label>
+          <input 
+            type="password" 
+            id="login-pw" 
+            placeholder="비밀번호를 입력하세요" 
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
         </div>
         
-        <button type="submit" class="auth-button">로그인</button>
+        <!-- 로그인 버튼 -->
+        <button type="submit" class="btn btn-primary w-full py-3 text-lg mb-4">
+          <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+          </svg>
+          로그인
+        </button>
         
-        <p class="auth-toggle">
-          계정이 없으신가요? <a href="#" id="show-register-form">회원가입 하러가기</a>
+        <!-- 회원가입 링크 -->
+        <p class="text-center text-sm text-gray-600 dark:text-gray-400">
+          계정이 없으신가요? 
+          <a href="#" id="show-register-form" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+            회원가입 하러가기
+          </a>
         </p>
       </form>
 
-      <form id="register-form" class="auth-form" style="display: none;">
-        <h2>회원가입</h2>
-        
-        <div class="form-group">
-          <label for="register-name">이름 (Username)</label>
-          <input type="text" id="register-name" required>
+      <!-- 회원가입 폼 -->
+      <form id="register-form" class="glass-card rounded-3xl p-8 border border-white/20 animate-scale-in" style="display: none;">
+        <!-- 로고/타이틀 -->
+        <div class="text-center mb-8">
+          <div class="text-4xl mb-3">🫧</div>
+          <h2 class="text-3xl font-bold gradient-text mb-2">회원가입</h2>
+          <p class="text-gray-600 dark:text-gray-400 text-sm">새로운 계정을 만들어보세요</p>
         </div>
         
-        <div class="form-group">
-          <label for="register-id">학번 (아이디)</label>
-          <input type="text" id="register-id" required>
+        <!-- 이름 입력 -->
+        <div class="mb-4">
+          <label for="register-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            이름
+          </label>
+          <input 
+            type="text" 
+            id="register-name" 
+            placeholder="이름을 입력하세요"
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
         </div>
         
-        <div class="form-group">
-          <label for="register-pw">비밀번호</label>
-          <input type="password" id="register-pw" required>
+        <!-- 학번 입력 -->
+        <div class="mb-4">
+          <label for="register-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            학번 (아이디)
+          </label>
+          <input 
+            type="text" 
+            id="register-id" 
+            placeholder="학번을 입력하세요"
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
+        </div>
+        
+        <!-- 비밀번호 입력 -->
+        <div class="mb-4">
+          <label for="register-pw" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            비밀번호
+          </label>
+          <input 
+            type="password" 
+            id="register-pw" 
+            placeholder="비밀번호를 입력하세요"
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
         </div>
 
-        <div class="form-group">
-          <label for="register-pw-confirm">비밀번호 확인</label>
-          <input type="password" id="register-pw-confirm" required>
+        <!-- 비밀번호 확인 -->
+        <div class="mb-6">
+          <label for="register-pw-confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            비밀번호 확인
+          </label>
+          <input 
+            type="password" 
+            id="register-pw-confirm" 
+            placeholder="비밀번호를 다시 입력하세요"
+            required
+            class="input w-full px-4 py-3 bg-white/50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+          >
         </div>
         
-        <button type="submit" class="auth-button">회원가입</button>
+        <!-- 회원가입 버튼 -->
+        <button type="submit" class="btn btn-primary w-full py-3 text-lg mb-4">
+          <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+          </svg>
+          회원가입
+        </button>
         
-        <p class="auth-toggle">
-          이미 계정이 있으신가요? <a href="#" id="show-login-form">로그인 하러가기</a>
+        <!-- 로그인 링크 -->
+        <p class="text-center text-sm text-gray-600 dark:text-gray-400">
+          이미 계정이 있으신가요? 
+          <a href="#" id="show-login-form" class="text-primary-600 dark:text-primary-400 hover:underline font-medium">
+            로그인 하러가기
+          </a>
         </p>
       </form>
 
-    </div> </main>
+    </div>
+  </main>
 
+  <!-- Scripts -->
+  <script src="js/theme.js"></script>
   <script src="js/mock-data.js"></script>
+  <script src="js/server-api.js"></script> 
+  <script src="js/auth.js"></script>
+  <script src="js/navbar.js"></script>
     
-    <script src="js/server-api.js"></script> 
-
-    <script src="js/auth.js"></script>
-
-    <script src="js/navbar.js"></script>
-    
-    </body>
-    </html>
+</body>
+</html>
