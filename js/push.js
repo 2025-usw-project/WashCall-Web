@@ -1,5 +1,5 @@
 // js/push.js
-// ❗️ (404 오류 해결을 위한 다중 경로 시도 버전)
+// ❗️ (가장 확실한 기본 경로 설정 버전)
 
 // 1. Firebase 설정
 const firebaseConfig = {
@@ -46,40 +46,32 @@ function setupMasterPushButton() {
     return;
   }
 
-  // ❗️ [핵심] 서비스 워커 경로 자동 감지 및 등록
-  registerServiceWorkerWithFallback();
+  // ❗️ [핵심] 파일을 index.html 옆에 두셨다면 이 경로가 정답입니다.
+  navigator.serviceWorker.register('./service-worker.js')
+    .then(registration => {
+      console.log('✅ 서비스 워커 등록 성공:', registration);
+    })
+    .catch(error => {
+      console.error('❌ 서비스 워커 등록 실패:', error);
+      
+      // 에러 메시지 분석하여 힌트 제공
+      if (error.message.includes('404')) {
+          alert("⚠️ service-worker.js 파일을 찾을 수 없습니다.\nindex.html과 같은 폴더에 있는지 확인해주세요!");
+      } else if (error.message.includes('mime')) {
+          alert("⚠️ 파일 형식 오류(MIME type).\n올바른 자바스크립트 파일이 아닙니다.");
+      } else if (error.message.includes('scope')) {
+          alert("⚠️ 범위(Scope) 오류.\nservice-worker.js 파일을 index.html과 같은 위치로 옮겨주세요.");
+      }
+      
+      masterPushButton.textContent = '알림 설정 실패';
+    });
 
   isRoomSubscribed = (localStorage.getItem(STORAGE_KEY) === 'true');
   updateMasterButtonText(isRoomSubscribed);
   masterPushButton.onclick = onMasterSubscribeToggle;
 }
 
-// ❗️ [신규] 경로 자동 감지 함수
-async function registerServiceWorkerWithFallback() {
-    // 1. 시도할 경로들
-    const paths = [
-        './service-worker.js',  // 상대 경로 (1순위)
-        '/service-worker.js',   // 절대 경로 (2순위)
-        new URL('service-worker.js', window.location.href).href // 전체 URL (3순위)
-    ];
-
-    for (const path of paths) {
-        try {
-            const registration = await navigator.serviceWorker.register(path);
-            console.log(`✅ 서비스 워커 등록 성공 (경로: ${path}):`, registration);
-            
-            // 성공했으므로 종료
-            return; 
-        } catch (error) {
-            console.warn(`⚠️ 경로 실패 (${path}):`, error);
-            // 다음 경로 시도...
-        }
-    }
-
-    // 모든 경로 실패 시
-    console.error("❌ 모든 경로에서 서비스 워커 등록 실패!");
-    if (masterPushButton) masterPushButton.textContent = '알림 설정 실패 (404)';
-}
+// ... (이하 함수들은 기존과 동일) ...
 
 async function onMasterSubscribeToggle() {
     if (!messaging) return alert("알림 기능을 사용할 수 없습니다.");
@@ -92,8 +84,8 @@ async function onMasterSubscribeToggle() {
             masterPushButton.textContent = '권한 확인 중...';
             
             const tokenOrStatus = await requestPermissionAndGetToken();
-            if (tokenOrStatus === 'denied') throw new Error("알림이 차단되었습니다.");
-            if (tokenOrStatus === null) throw new Error("알림 권한이 거부되었습니다.");
+            if (tokenOrStatus === 'denied') throw new Error("알림 차단됨");
+            if (tokenOrStatus === null) throw new Error("알림 거부됨");
             
             const token = tokenOrStatus;
             await api.registerPushToken(token);
