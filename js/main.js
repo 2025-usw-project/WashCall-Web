@@ -1,5 +1,5 @@
 // js/main.js
-// ❗️ (notify 수신 처리 및 자동 해제 트리거 포함 최종본)
+// ❗️ (빈자리 알림 자동 해제 연동 & 문구 개선 & 상태 보정 포함 최종본)
 
 let connectionStatusElement;
 let currentSelectedMachineId = null; 
@@ -181,12 +181,12 @@ function updateMachineCard(machineId, newStatus, newTimer, isSubscribed, newElap
     }
 
     // ❗️ [핵심] 구독 정보가 '명확하게(true/false)' 올 때만 dataset 변경
+    // null이나 undefined면 기존 상태를 그대로 유지함 (웹소켓 대응)
     if (isSubscribed === true) {
         card.dataset.isSubscribed = 'true';
     } else if (isSubscribed === false) {
         delete card.dataset.isSubscribed;
     } 
-    // null이나 undefined면 기존 상태를 그대로 유지함
     
     // 3. 통합 UI 함수 호출
     if (typeof window.updateButtonUI === 'function') {
@@ -249,7 +249,7 @@ function renderMachines(machines) {
                 🔔 세탁 시작
             </button>
             <button class="notify-me-during-wash-btn" data-machine-id="${machine.machine_id}" style="display: none;">
-                🔔 완료 알림 받기
+                🔔 알림 받기
             </button>
         `;
         container.appendChild(machineDiv);
@@ -319,7 +319,8 @@ window.updateButtonUI = function(card, status) {
             if (isLocalSubscribed) {
                 notifyMeButton.textContent = '✅ 알림 등록됨 (해제)';
             } else {
-                notifyMeButton.textContent = '🔔 완료 알림 받기';
+                // 🚀 [수정] "완료 알림 받기" -> "알림 받기"로 문구 간소화
+                notifyMeButton.textContent = '🔔 알림 받기';
             }
         }
     } else {
@@ -419,7 +420,10 @@ async function handleCourseSelection(machineId, courseName) {
             api.startCourse(machineId, courseName)
         ]);
         
+        // 🚀 [추가] 시작 성공 시 상태와 구독 정보를 확실하게 설정 (UI 깜빡임 방지)
         card.dataset.isSubscribed = 'true';
+        card.dataset.status = 'WASHING'; 
+        
         window.updateButtonUI(card, 'WASHING'); 
 
         setTimeout(() => alert(`${courseName} 코스 알림이 등록되었습니다.`), 50);
@@ -468,7 +472,10 @@ async function handleDryerStart(clickedBtn, card) {
             api.startCourse(machineId, 'DRYER')
         ]);
         
+        // 🚀 [추가] 시작 성공 시 상태와 구독 정보를 확실하게 설정
         card.dataset.isSubscribed = 'true';
+        card.dataset.status = 'DRYING'; 
+        
         window.updateButtonUI(card, 'DRYING'); 
 
         setTimeout(() => alert(`건조기 알림이 등록되었습니다.`), 50);
@@ -505,7 +512,9 @@ function addNotifyMeDuringWashLogic() {
 
                 } catch (error) {
                     alert(`취소 실패: ${error.message}`);
-                    window.updateButtonUI(card, 'WASHING'); 
+                    // 실패 시 복구 (상태는 그대로 유지)
+                    const currentStatus = card.dataset.status || 'WASHING';
+                    window.updateButtonUI(card, currentStatus); 
                 }
             } else {
                 // 등록
