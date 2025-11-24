@@ -1,5 +1,5 @@
 // js/push.js
-// ❗️ (불필요한 opacity 제거, disabled만 사용하여 회색 처리)
+// ❗️ (UI 제어권 main.js로 이양한 버전)
 
 const firebaseConfig = {
     apiKey: "AIzaSyD0MBr9do9Hl3AJsNv0yZJRupDT1l-8dVE",
@@ -53,7 +53,8 @@ async function setupMasterPushButton() {
   updateMasterButtonText(isRoomSubscribed);
   
   if (isRoomSubscribed) {
-      setTimeout(() => toggleAllCardButtons(true), 500);
+      // ✅ 수정: true 인자 제거 (updateButtonUI에서 알아서 판단함)
+      setTimeout(() => toggleAllCardButtons(), 500);
   }
 
   masterPushButton.onclick = onMasterSubscribeToggle;
@@ -93,7 +94,11 @@ async function onMasterSubscribeToggle() {
             const allToggles = document.querySelectorAll('.notify-me-toggle'); 
             await subscribeAllMachinesAPI(allToggles, true); 
             
-            toggleAllCardButtons(true);
+            // ✅ 수정: localStorage 값을 먼저 설정해야 updateButtonUI가 이를 인지함
+            isRoomSubscribed = targetState;
+            localStorage.setItem(STORAGE_KEY, isRoomSubscribed);
+            
+            toggleAllCardButtons();
 
             alert(`'빈자리 알림'이 켜졌습니다.\n세탁기가 비면 푸시 알림을 드립니다.`);
 
@@ -103,16 +108,19 @@ async function onMasterSubscribeToggle() {
             await subscribeAllMachinesAPI(allToggles, false); 
             
             await restoreSubscriptions();
-            toggleAllCardButtons(false);
+            
+            // ✅ 수정: localStorage 값을 먼저 업데이트
+            isRoomSubscribed = targetState;
+            localStorage.setItem(STORAGE_KEY, isRoomSubscribed);
+            
+            toggleAllCardButtons();
             
             alert('빈자리 알림이 꺼졌습니다.\n(기존 알림 설정이 복구되었습니다)');
         }
 
-        isRoomSubscribed = targetState; 
-        localStorage.setItem(STORAGE_KEY, isRoomSubscribed); 
-        
     } catch (error) {
         alert(`처리 실패: ${error.message}`);
+        // 에러 시 원복
         isRoomSubscribed = (localStorage.getItem(STORAGE_KEY) === 'true'); 
     }
     
@@ -149,56 +157,17 @@ async function restoreSubscriptions() {
     localStorage.removeItem(RESTORE_KEY);
 }
 
-// ❗️ [수정] opacity 설정 제거 -> CSS disabled 스타일(회색)만 따름
-function toggleAllCardButtons(shouldDisable) {
+// ❗️ [핵심 수정] UI 제어를 main.js의 updateButtonUI에 위임
+function toggleAllCardButtons() {
     const allCards = document.querySelectorAll('.machine-card');
 
     allCards.forEach(card => {
-        const startBtn = card.querySelector('.notify-start-btn');
-        const notifyBtn = card.querySelector('.notify-me-during-wash-btn');
-        const isSubscribed = card.dataset.isSubscribed === 'true';
+        // main.js에서 저장해둔 data-status를 사용
+        const currentStatus = card.dataset.status || 'OFF';
         
-        const statusText = card.querySelector('.status-display strong')?.textContent || "";
-        const isRunning = statusText.includes("중"); 
-        const isWaiting = statusText.includes("대기") || statusText.includes("완료") || statusText.includes("OFF");
-
-        if (shouldDisable) {
-            // 🔴 [잠금]
-            if (startBtn) {
-                startBtn.style.display = 'block';
-                startBtn.disabled = true; // CSS가 회색으로 만듦
-                startBtn.textContent = "빈자리 알림 사용 중";
-                startBtn.style.opacity = ""; // 기존 투명도 제거
-            }
-            if (notifyBtn) notifyBtn.style.display = 'none';
-            
-        } else {
-            // 🟢 [해제]
-            if (isSubscribed) {
-                if (startBtn) startBtn.style.display = 'none';
-                if (notifyBtn) {
-                    notifyBtn.style.display = 'block';
-                    notifyBtn.textContent = '✅ 알림 등록됨 (해제)';
-                    notifyBtn.disabled = false;
-                }
-            } else {
-                if (isWaiting) {
-                    if (startBtn) {
-                        startBtn.style.display = 'block';
-                        startBtn.disabled = false;
-                        startBtn.textContent = "🔔 세탁 시작";
-                        startBtn.style.opacity = "";
-                    }
-                    if (notifyBtn) notifyBtn.style.display = 'none';
-                } else {
-                    if (startBtn) startBtn.style.display = 'none';
-                    if (notifyBtn) {
-                        notifyBtn.style.display = 'block';
-                        notifyBtn.textContent = '🔔 완료 알림 받기';
-                        notifyBtn.disabled = false;
-                    }
-                }
-            }
+        // main.js가 로드되어 있다면 통합 UI 함수 호출
+        if (typeof window.updateButtonUI === 'function') {
+            window.updateButtonUI(card, currentStatus);
         }
     });
 }
