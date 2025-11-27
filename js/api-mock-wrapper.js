@@ -12,6 +12,8 @@
     const MOCK_PREFIX = '[MockAPI]';
 
     let mockWsTimerId = null;
+    let serverHealthCheckFn = null;
+    let serverCheckInProgress = false;
 
     function isMockEnabled() {
         return sessionStorage.getItem(MOCK_ENABLED_KEY) === '1';
@@ -38,11 +40,76 @@
         return lower.includes('failed to fetch') || lower.includes('networkerror') || lower.includes('network error');
     }
 
+    function createServerHealthCheckFn() {
+        if (typeof API_BASE_URL === 'undefined' || typeof fetch === 'undefined') {
+            return null;
+        }
+        return async function () {
+            const url = API_BASE_URL + '/health';
+            const headers = { 'ngrok-skip-browser-warning': 'true' };
+            let response;
+            try {
+                response = await fetch(url, { method: 'GET', headers: headers });
+            } catch (error) {
+                throw error;
+            }
+
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (e) {}
+
+            if (!response || !response.ok || !data || data.status !== 'ok') {
+                const err = new Error('Health check failed');
+                err._isHealthLogicalError = true;
+                throw err;
+            }
+            return data;
+        };
+    }
+
+    function checkServerConnectionInBackground() {
+        if (!serverHealthCheckFn) {
+            return;
+        }
+        if (serverCheckInProgress) {
+            return;
+        }
+        serverCheckInProgress = true;
+
+        setTimeout(function () {
+            Promise.resolve()
+                .then(function () {
+                    console.debug(MOCK_PREFIX, '서버 재연결 상태 확인 중... (백그라운드)');
+                    return serverHealthCheckFn();
+                })
+                .then(function () {
+                    console.info(MOCK_PREFIX, '서버 연결이 복구된 것으로 판단합니다. 목업 모드를 해제합니다.');
+                    try {
+                        sessionStorage.setItem(MOCK_ENABLED_KEY, '0');
+                    } catch (e) {}
+                })
+                .catch(function (error) {
+                    if (error && error._isHealthLogicalError) {
+                        console.debug(MOCK_PREFIX, '서버 헬스체크 실패(응답은 받았으나 상태 비정상), 목업 모드 유지:', error);
+                    } else if (isNetworkError(error)) {
+                        console.debug(MOCK_PREFIX, '서버 재연결 실패(네트워크 오류), 목업 모드 유지:', error);
+                    } else {
+                        console.debug(MOCK_PREFIX, '서버 헬스체크 중 알 수 없는 오류, 목업 모드 유지:', error);
+                    }
+                })
+                .finally(function () {
+                    serverCheckInProgress = false;
+                });
+        }, 0);
+    }
+
     function wrapWithMock(name, realFn, mockFn) {
         return async function wrappedApiMethod() {
             const args = Array.prototype.slice.call(arguments);
 
             if (isMockEnabled()) {
+                checkServerConnectionInBackground();
                 logMockCall(name);
                 return mockFn.apply(null, args);
             }
@@ -538,6 +605,7 @@
     }
 
     if (api && typeof api.getCongestionData === 'function') {
+        serverHealthCheckFn = createServerHealthCheckFn();
         api.getCongestionData = wrapWithMock('getCongestionData', api.getCongestionData, mockGetCongestionData);
     }
 
