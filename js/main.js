@@ -85,9 +85,9 @@ function updateConnectionStatus(status) {
                 isMock = (sessionStorage.getItem('washcall-mock-enabled') === '1');
             } catch (e) {}
             if (isMock) {
-                connectionStatusElement.textContent = '✅ 목업 데이터로 실시간 업데이트 중.';
+                connectionStatusElement.textContent = '🔖 목업 데이터로 실시간 업데이트 중';
             } else {
-                connectionStatusElement.textContent = '✅ 서버 연결 성공! 실시간 업데이트 중.';
+                connectionStatusElement.textContent = '✅ 서버 연결 성공! 실시간 업데이트 중';
             }
             connectionStatusElement.style.opacity = 1;
             setTimeout(() => {
