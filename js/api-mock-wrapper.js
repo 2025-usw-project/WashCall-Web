@@ -84,10 +84,15 @@
                     return serverHealthCheckFn();
                 })
                 .then(function () {
-                    console.info(MOCK_PREFIX, '서버 연결이 복구된 것으로 판단합니다. 목업 모드를 해제합니다.');
+                    console.info(MOCK_PREFIX, '서버 연결이 복구된 것으로 판단합니다. 목업 모드를 해제하고 페이지를 새로고침합니다.');
                     try {
                         sessionStorage.setItem(MOCK_ENABLED_KEY, '0');
+                        sessionStorage.removeItem(MOCK_DB_KEY);
+                        sessionStorage.removeItem(MOCK_TOAST_SHOWN_KEY);
                     } catch (e) {}
+                    try {
+                        window.location.reload();
+                    } catch (e2) {}
                 })
                 .catch(function (error) {
                     if (error && error._isHealthLogicalError) {

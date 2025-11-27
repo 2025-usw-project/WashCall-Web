@@ -4,7 +4,7 @@
 // ❗️ [핵심 1] 변수 정의
 // (api 객체보다 '반드시' 먼저 정의되어야 합니다)
 const isLocal = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-const LOCAL_URL = "https://server.washcall.space"; 
+const LOCAL_URL = "http://localhost:8000"; 
 const PRODUCTION_URL = "https://server.washcall.space";
 const API_BASE_URL = isLocal ? LOCAL_URL : PRODUCTION_URL;
 
