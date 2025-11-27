@@ -1,3 +1,5 @@
+//목업 안쓸때는 이
+
 (function () {
     if (typeof api === 'undefined') {
         console.warn('[MockAPI] api 객체가 정의되지 않았습니다. server-api.js가 먼저 로드되는지 확인하세요.');
@@ -175,11 +177,6 @@
     }
 
     function showMockToastOnce() {
-        if (sessionStorage.getItem(MOCK_TOAST_SHOWN_KEY) === '1') {
-            return;
-        }
-        sessionStorage.setItem(MOCK_TOAST_SHOWN_KEY, '1');
-
         if (!document || !document.body) {
             return;
         }
@@ -224,9 +221,9 @@
                     machine_name: '세탁기 1번',
                     room_name: '기숙사 세탁실',
                     machine_type: 'washer',
-                    status: 'OFF',
-                    timer: null,
-                    elapsed_time_minutes: 0,
+                    status: 'WASHING',
+                    timer: 21,
+                    elapsed_time_minutes: 15,
                     isusing: 0
                 },
                 {
@@ -234,24 +231,34 @@
                     machine_name: '세탁기 2번',
                     room_name: '기숙사 세탁실',
                     machine_type: 'washer',
-                    status: 'WASHING',
-                    timer: 20,
-                    elapsed_time_minutes: 10,
-                    isusing: 1
+                    status: 'SPINNING',
+                    timer: 5,
+                    elapsed_time_minutes: 5,
+                    isusing: 0
                 },
                 {
                     machine_id: 3,
+                    machine_name: '세탁기 3번',
+                    room_name: '기숙사 세탁실',
+                    machine_type: 'washer',
+                    status: 'FINISHED',
+                    timer: 0,
+                    elapsed_time_minutes: 0,
+                    isusing: 0
+                },
+                {
+                    machine_id: 4,
                     machine_name: '건조기 1번',
                     room_name: '기숙사 세탁실',
                     machine_type: 'dryer',
                     status: 'DRYING',
-                    timer: 30,
-                    elapsed_time_minutes: 15,
+                    timer: 35,
+                    elapsed_time_minutes: 10,
                     isusing: 0
                 }
             ],
-            congestionByDay: createDefaultCongestionByDay(),
-            congestionTip: '현재는 비교적 여유로운 시간대입니다. 세탁을 시작하기 좋습니다.'
+            congestionByDay: getBusyTableCongestionFromDump(),
+            congestionTip: '지금은 3대 사용 중으로 바쁜 시간대에요, 월요일 밤이 비교적 한산해요! 😊'
         };
 
         try {
@@ -261,29 +268,16 @@
         }
     }
 
-    function createDefaultCongestionByDay() {
-        const days = ['월', '화', '수', '목', '금', '토', '일'];
-        const result = {};
-        for (var i = 0; i < days.length; i++) {
-            var day = days[i];
-            var arr = [];
-            for (var h = 0; h < 24; h++) {
-                var value = 0;
-                if (h >= 18 && h <= 22) {
-                    value = 4;
-                } else if (h >= 10 && h <= 17) {
-                    value = 2;
-                } else {
-                    value = 1;
-                }
-                if (day === '토' || day === '일') {
-                    value = Math.max(0, value - 1);
-                }
-                arr.push(value);
-            }
-            result[day] = arr;
-        }
-        return result;
+    function getBusyTableCongestionFromDump() {
+        return {
+            '월': [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 3, 4, 3, 4, 2, 2, 1, 0, 0],
+            '화': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 2, 3, 2, 1, 4, 3, 1, 3, 0, 0],
+            '수': [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 3, 1, 1, 0, 2, 4, 4, 1, 4, 1, 0, 0],
+            '목': [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 0, 1, 1, 2, 0, 3, 4, 4, 2, 3, 3, 0, 0],
+            '금': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 1, 4, 1, 4, 4, 3, 4, 4, 1, 0, 0],
+            '토': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 3, 4, 1, 3, 1, 3, 1, 0, 0],
+            '일': [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 2, 4, 3, 2, 4, 3, 3, 1, 4, 0, 0]
+        };
     }
 
     function loadMockDb() {
@@ -382,9 +376,8 @@
 
     function mockGetCongestionData() {
         var db = loadMockDb();
-        if (!db.congestionByDay) {
-            db.congestionByDay = createDefaultCongestionByDay();
-        }
+        db.congestionByDay = getBusyTableCongestionFromDump();
+        saveMockDb(db);
         console.debug(MOCK_PREFIX, 'getCongestionData() 목업 데이터 사용');
         return Promise.resolve(db.congestionByDay);
     }
@@ -537,6 +530,7 @@
 
     if (isMockEnabled()) {
         console.info(MOCK_PREFIX, '이전 요청에서 이미 목업 모드가 활성화되어 있습니다. 모든 지원 API는 목업으로 동작합니다.');
+        showMockToastOnce();
     }
 
     if (api && typeof api.getInitialMachines === 'function') {
