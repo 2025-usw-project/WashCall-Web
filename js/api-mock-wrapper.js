@@ -9,6 +9,8 @@
     const MOCK_DB_KEY = 'washcall-mock-db-v1';
     const MOCK_PREFIX = '[MockAPI]';
 
+    let mockWsTimerId = null;
+
     function isMockEnabled() {
         return sessionStorage.getItem(MOCK_ENABLED_KEY) === '1';
     }
@@ -53,6 +55,121 @@
                 enableMockMode(error);
                 logMockCall(name);
                 return mockFn.apply(null, args);
+            }
+        };
+    }
+
+    function clearMockWebSocketTimer() {
+        if (mockWsTimerId !== null) {
+            clearInterval(mockWsTimerId);
+            mockWsTimerId = null;
+        }
+    }
+
+    function mockConnect(onOpenCallback, onMessageCallback, onErrorCallback) {
+        console.info(MOCK_PREFIX, 'connect() 목업 WebSocket 시뮬레이션을 시작합니다.');
+        clearMockWebSocketTimer();
+
+        if (typeof onOpenCallback === 'function') {
+            setTimeout(function () {
+                onOpenCallback();
+            }, 0);
+        }
+
+        if (typeof onMessageCallback !== 'function') {
+            return;
+        }
+
+        mockWsTimerId = setInterval(function () {
+            var db = loadMockDb();
+            var list = Array.isArray(db.machines) ? db.machines : [];
+            var changed = [];
+
+            for (var i = 0; i < list.length; i++) {
+                var m = list[i];
+                if (!m) continue;
+                var status = m.status;
+                if (status === 'WASHING' || status === 'SPINNING' || status === 'DRYING') {
+                    var timer = typeof m.timer === 'number' ? m.timer : null;
+                    var elapsed = typeof m.elapsed_time_minutes === 'number' ? m.elapsed_time_minutes : 0;
+                    if (timer === null) {
+                        timer = 30;
+                    }
+                    if (timer > 0) {
+                        timer = timer - 1;
+                        if (timer < 0) timer = 0;
+                        elapsed = elapsed + 1;
+                        if (timer === 0) {
+                            status = 'FINISHED';
+                        }
+                        m.timer = timer;
+                        m.elapsed_time_minutes = elapsed;
+                        m.status = status;
+                        changed.push({
+                            machine_id: m.machine_id,
+                            status: status,
+                            timer: timer,
+                            elapsed_time_minutes: elapsed
+                        });
+                    }
+                }
+            }
+
+            if (changed.length > 0) {
+                saveMockDb(db);
+                var message = {
+                    type: 'timer_sync',
+                    machines: changed
+                };
+                var event = { data: JSON.stringify(message) };
+                try {
+                    onMessageCallback(event);
+                } catch (e) {
+                    console.error(MOCK_PREFIX, 'mock WebSocket onMessage 처리 중 오류:', e);
+                }
+            }
+        }, 15000);
+    }
+
+    function wrapConnectWithMock(realConnect) {
+        return function wrappedConnect(onOpenCallback, onMessageCallback, onErrorCallback) {
+            if (isMockEnabled()) {
+                logMockCall('connect');
+                mockConnect(onOpenCallback, onMessageCallback, onErrorCallback);
+                return;
+            }
+
+            var calledFallback = false;
+
+            function fallbackToMock(reason) {
+                if (calledFallback) {
+                    return;
+                }
+                calledFallback = true;
+                console.error(MOCK_PREFIX, 'connect() WebSocket 오류, 목업 WebSocket으로 폴백합니다:', reason);
+                enableMockMode(reason || 'WebSocket error');
+                logMockCall('connect');
+                mockConnect(onOpenCallback, onMessageCallback, onErrorCallback);
+            }
+
+            try {
+                realConnect(
+                    function () {
+                        if (typeof onOpenCallback === 'function') {
+                            onOpenCallback();
+                        }
+                    },
+                    function (event) {
+                        if (typeof onMessageCallback === 'function') {
+                            onMessageCallback(event);
+                        }
+                    },
+                    function () {
+                        fallbackToMock('WebSocket onerror/onclose');
+                    }
+                );
+            } catch (error) {
+                fallbackToMock(error);
             }
         };
     }
@@ -456,5 +573,9 @@
 
     if (api && typeof api.submitSurvey === 'function') {
         api.submitSurvey = wrapWithMock('submitSurvey', api.submitSurvey, mockSubmitSurvey);
+    }
+
+    if (api && typeof api.connect === 'function') {
+        api.connect = wrapConnectWithMock(api.connect);
     }
 })();
