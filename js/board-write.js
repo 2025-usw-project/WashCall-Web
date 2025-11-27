@@ -1,5 +1,5 @@
 // js/board-write.js
-// (mock-data.js와 server-api.js가 먼저 로드되어야 함)
+// server-api.js가 먼저 로드되어야 함)
 
 document.addEventListener('DOMContentLoaded', () => {
     // ❗️ (수정) auth.js가 처리하므로 setupLogoutButton() 호출 제거
