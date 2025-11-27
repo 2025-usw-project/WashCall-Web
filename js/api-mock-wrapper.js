@@ -189,9 +189,76 @@
         }
     }
 
+    function saveMockDb(db) {
+        try {
+            sessionStorage.setItem(MOCK_DB_KEY, JSON.stringify(db));
+        } catch (e) {
+            console.error(MOCK_PREFIX, '목업 DB 저장 중 오류:', e);
+        }
+    }
+
+    function findUserByStudentId(db, studentId) {
+        db.users = db.users || [];
+        var numericId = parseInt(studentId, 10);
+        if (isNaN(numericId)) {
+            return null;
+        }
+        for (var i = 0; i < db.users.length; i++) {
+            if (db.users[i].user_snum === numericId) {
+                return db.users[i];
+            }
+        }
+        return null;
+    }
+
+    function createUser(db, username, studentId, password) {
+        db.users = db.users || [];
+        var nextId = db.nextUserId || 1;
+        var numericId = parseInt(studentId, 10);
+        if (isNaN(numericId)) {
+            numericId = null;
+        }
+        var user = {
+            user_id: nextId,
+            user_username: username || ('사용자' + nextId),
+            user_snum: numericId,
+            user_password: password || '',
+            fcm_token: null
+        };
+        db.users.push(user);
+        db.nextUserId = nextId + 1;
+        return user;
+    }
+
+    function getCurrentMockUserId() {
+        var token = localStorage.getItem('user_token') || '';
+        var prefix = 'mock-user-';
+        if (token.indexOf(prefix) !== 0) {
+            return null;
+        }
+        var idStr = token.substring(prefix.length);
+        var id = parseInt(idStr, 10);
+        if (isNaN(id)) {
+            return null;
+        }
+        return id;
+    }
+
     function mockGetInitialMachines() {
         var db = loadMockDb();
         var list = Array.isArray(db.machines) ? db.machines : [];
+
+        db.notifySubscriptions = db.notifySubscriptions || [];
+        var subs = db.notifySubscriptions;
+        for (var i = 0; i < list.length; i++) {
+            var m = list[i];
+            if (subs.indexOf(m.machine_id) !== -1) {
+                m.isusing = 1;
+            } else if (typeof m.isusing !== 'number') {
+                m.isusing = 0;
+            }
+        }
+
         console.debug(MOCK_PREFIX, 'getInitialMachines() 목업 데이터 반환:', list.length, '개');
         return Promise.resolve(list);
     }
@@ -212,6 +279,143 @@
         return Promise.resolve(tip);
     }
 
+    function mockRegister(username, studentId, password) {
+        var db = loadMockDb();
+        var existing = findUserByStudentId(db, studentId);
+        if (existing) {
+            return Promise.reject(new Error('이미 등록된 학번입니다. (mock)'));
+        }
+        createUser(db, username, studentId, password);
+        saveMockDb(db);
+        console.debug(MOCK_PREFIX, 'register() 목업 사용자 생성:', studentId);
+        return Promise.resolve({ message: 'mock registered' });
+    }
+
+    function mockLogin(studentId, password) {
+        var db = loadMockDb();
+        var user = findUserByStudentId(db, studentId);
+        if (!user) {
+            user = createUser(db, '사용자', studentId, password || '');
+        } else if (user.user_password && password && user.user_password !== password) {
+            return Promise.reject(new Error('비밀번호가 올바르지 않습니다. (mock)'));
+        }
+        saveMockDb(db);
+        var token = 'mock-user-' + user.user_id;
+        console.debug(MOCK_PREFIX, 'login() 목업 로그인 성공, user_id=', user.user_id);
+        return Promise.resolve(token);
+    }
+
+    function mockRegisterPushToken(fcmToken) {
+        var db = loadMockDb();
+        var userId = getCurrentMockUserId();
+        if (userId) {
+            db.users = db.users || [];
+            for (var i = 0; i < db.users.length; i++) {
+                if (db.users[i].user_id === userId) {
+                    db.users[i].fcm_token = fcmToken;
+                    break;
+                }
+            }
+        } else {
+            db.lastFcmToken = fcmToken;
+        }
+        saveMockDb(db);
+        console.debug(MOCK_PREFIX, 'registerPushToken() 목업: FCM 토큰 저장');
+        return Promise.resolve({ message: 'mock fcm registered' });
+    }
+
+    function mockToggleNotifyMe(machineId, subscribe) {
+        var id = parseInt(machineId, 10);
+        var db = loadMockDb();
+        db.notifySubscriptions = db.notifySubscriptions || [];
+        var subs = db.notifySubscriptions;
+        var idx = subs.indexOf(id);
+
+        if (subscribe) {
+            if (idx === -1) {
+                subs.push(id);
+            }
+        } else if (idx !== -1) {
+            subs.splice(idx, 1);
+        }
+
+        if (Array.isArray(db.machines)) {
+            for (var i = 0; i < db.machines.length; i++) {
+                if (db.machines[i].machine_id === id) {
+                    db.machines[i].isusing = subscribe ? 1 : 0;
+                    break;
+                }
+            }
+        }
+
+        saveMockDb(db);
+        console.debug(MOCK_PREFIX, 'toggleNotifyMe() 목업: machine', id, 'subscribe=', !!subscribe);
+        return Promise.resolve({ machine_id: id, subscribed: !!subscribe });
+    }
+
+    function mockStartCourse(machineId, courseName) {
+        var id = parseInt(machineId, 10);
+        var db = loadMockDb();
+        var list = Array.isArray(db.machines) ? db.machines : [];
+        var machine = null;
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].machine_id === id) {
+                machine = list[i];
+                break;
+            }
+        }
+        if (!machine) {
+            machine = {
+                machine_id: id,
+                machine_name: '세탁기 ' + id + '번',
+                room_name: '기숙사 세탁실',
+                machine_type: 'washer',
+                status: 'OFF',
+                timer: null,
+                elapsed_time_minutes: 0,
+                isusing: 0
+            };
+            list.push(machine);
+            db.machines = list;
+        }
+
+        var isDryerCourse = (courseName === 'DRYER' || machine.machine_type === 'dryer');
+        var totalMinutes = isDryerCourse ? 45 : 36;
+
+        machine.status = isDryerCourse ? 'DRYING' : 'WASHING';
+        machine.elapsed_time_minutes = 0;
+        machine.timer = totalMinutes;
+
+        saveMockDb(db);
+        console.debug(MOCK_PREFIX, 'startCourse() 목업: machine', id, 'status=', machine.status, 'timer=', machine.timer);
+        return Promise.resolve({ timer: machine.timer });
+    }
+
+    function mockSubmitSurvey(surveyData) {
+        var db = loadMockDb();
+        db.surveys = db.surveys || [];
+        var now = new Date().toISOString();
+
+        var satisfaction = null;
+        if (surveyData && typeof surveyData.satisfaction !== 'undefined') {
+            var s = parseInt(surveyData.satisfaction, 10);
+            satisfaction = isNaN(s) ? null : s;
+        }
+
+        var item = {
+            id: db.nextSurveyId || 1,
+            created_at: now,
+            satisfaction: satisfaction,
+            suggestion: (surveyData && surveyData.suggestion) ? surveyData.suggestion : ''
+        };
+
+        db.surveys.push(item);
+        db.nextSurveyId = (db.nextSurveyId || 1) + 1;
+        saveMockDb(db);
+        console.debug(MOCK_PREFIX, 'submitSurvey() 목업: 설문 저장, 총 개수=', db.surveys.length);
+        return Promise.resolve({ message: 'mock survey stored' });
+    }
+
     initMockDbIfNeeded();
 
     if (isMockEnabled()) {
@@ -228,5 +432,29 @@
 
     if (api && typeof api.getCongestionTip === 'function') {
         api.getCongestionTip = wrapWithMock('getCongestionTip', api.getCongestionTip, mockGetCongestionTip);
+    }
+
+    if (api && typeof api.register === 'function') {
+        api.register = wrapWithMock('register', api.register, mockRegister);
+    }
+
+    if (api && typeof api.login === 'function') {
+        api.login = wrapWithMock('login', api.login, mockLogin);
+    }
+
+    if (api && typeof api.registerPushToken === 'function') {
+        api.registerPushToken = wrapWithMock('registerPushToken', api.registerPushToken, mockRegisterPushToken);
+    }
+
+    if (api && typeof api.toggleNotifyMe === 'function') {
+        api.toggleNotifyMe = wrapWithMock('toggleNotifyMe', api.toggleNotifyMe, mockToggleNotifyMe);
+    }
+
+    if (api && typeof api.startCourse === 'function') {
+        api.startCourse = wrapWithMock('startCourse', api.startCourse, mockStartCourse);
+    }
+
+    if (api && typeof api.submitSurvey === 'function') {
+        api.submitSurvey = wrapWithMock('submitSurvey', api.submitSurvey, mockSubmitSurvey);
     }
 })();
